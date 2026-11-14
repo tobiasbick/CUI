@@ -1736,6 +1736,33 @@ static void test_expandable_focus(void) {
     cui_destroy(ui);
 }
 
+typedef struct { bool open, enter_available; int selected; } palette_close_case;
+
+/** Record both the command and whether the palette consumed Enter. */
+static void build_palette_close(cui_ctx *ui, void *user) {
+    palette_close_case *c = user;
+    static const cui_command command = { .title = "Open" };
+    c->selected = cui_command_palette(ui, &c->open, &command, 1);
+    c->enter_available = cui_key_pressed(ui, CUI_KEY_ENTER);
+}
+
+/** A closing palette stays visible for its transition without accepting keys. */
+static void test_palette_close(void) {
+    printf("command palette: closing animation does not activate\n");
+    cui_ctx *ui = new_ctx();
+    cui_set_reduced_motion(ui, false);
+    palette_close_case c = { .open = true };
+    run(ui, build_palette_close, &c, 50);
+    c.open = false;
+    key(ui, build_palette_close, &c, CUI_KEY_ENTER, 0);
+    CHECK(c.selected == -1 && c.enter_available);
+    c.open = true;
+    run(ui, build_palette_close, &c, 3);
+    key(ui, build_palette_close, &c, CUI_KEY_ENTER, 0);
+    CHECK(c.selected == 0 && !c.open && !c.enter_available);
+    cui_destroy(ui);
+}
+
 static void test_disclosure(void) {
     printf("disclosure: hover card, confirm popover, expandables, toc, banner, checklist\n");
     cui_ctx *ui = new_ctx();
@@ -8351,6 +8378,7 @@ int main(void) {
     test_pickers();
     test_disclosure();
     test_expandable_focus();
+    test_palette_close();
     test_confirm_popover_keyboard();
     test_checklist();
     test_data_grid();
