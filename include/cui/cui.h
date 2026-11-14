@@ -4339,7 +4339,7 @@ typedef struct cui_trace_opts {
 } cui_trace_opts;
 typedef struct cui_trace_result {
     bool selection_changed;    /* `*selected` changed this frame (click or keys) */
-    bool view_changed;         /* the visible time range or the scroll in `*view` changed (zoom, pan, fit) */
+    bool view_changed;         /* time range, scroll position, or measurement in `*view` changed */
     int hovered;               /* span under the pointer, or -1 */
 } cui_trace_result;
 CUI_API cui_trace_result cui_trace_view_ex(cui_ctx *ui, const char *id, cui_trace_track *tracks, int track_count,
