@@ -1754,9 +1754,17 @@ static void test_disclosure(void) {
     CHECK(!a.card_built);
     run(ui, build_disclosure, &a, 40);
     CHECK(a.card_built);
+    key(ui, build_disclosure, &a, CUI_KEY_ESCAPE, 0);
+    run(ui, build_disclosure, &a, 40);
+    CHECK(!a.card_built);
     cui_input_mouse_move(ui, 990, 1090);
     run(ui, build_disclosure, &a, 40);
     CHECK(!a.card_built);
+    cui_input_mouse_move(ui, l.x, l.y);
+    run(ui, build_disclosure, &a, 40);
+    CHECK(a.card_built);
+    cui_input_mouse_move(ui, 990, 1090);
+    run(ui, build_disclosure, &a, 40);
     /* confirm popover */
     cui_vec2 dl = center(rect_of(ui, a.del_id));
     click_at(ui, build_disclosure, &a, dl.x, dl.y);
