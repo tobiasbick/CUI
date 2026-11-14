@@ -1607,6 +1607,26 @@ static void test_picker_focus_ring(void) {
     }
 }
 
+/** Color edits in an open picker start from the caller's latest RGB. */
+static void test_color_picker_model_update(void) {
+    printf("color picker: external model update while open\n");
+    cui_ctx *ui = new_ctx();
+    picker_focus_case p = { .color = true, .rgb = CUI_RGB(0x7747ff) };
+    run(ui, build_picker_focus, &p, 3);
+    key(ui, build_picker_focus, &p, CUI_KEY_TAB, 0);
+    key(ui, build_picker_focus, &p, CUI_KEY_ENTER, 0);
+    p.rgb = CUI_RGB(0xff0000);
+    p.rgb.a = 100;
+    run(ui, build_picker_focus, &p, 3);
+    cui_push_id_int(ui, (int)(p.id ^ 0xC010Eu));
+    cui_rect hue = rect_of(ui, cui_make_id(ui, "#hue"));
+    cui_pop_id(ui);
+    CHECK(hue.w > 150);
+    click_at(ui, build_picker_focus, &p, hue.x + hue.w / 3, hue.y + hue.h / 2);
+    CHECK(p.rgb.r <= 1 && p.rgb.g == 255 && p.rgb.b <= 1 && p.rgb.a == 100);
+    cui_destroy(ui);
+}
+
 static void test_pickers(void) {
     printf("pickers: multi-select, range calendar, wheel, ruler, dial, dropzone, signature\n");
     cui_ctx *ui = new_ctx();
@@ -8370,6 +8390,7 @@ int main(void) {
     test_pickers();
     test_ruler_bound();
     test_picker_focus_ring();
+    test_color_picker_model_update();
     test_disclosure();
     test_confirm_popover_keyboard();
     test_checklist();
