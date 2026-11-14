@@ -993,7 +993,7 @@ CUI_API bool cui_list_item_ex(cui_ctx *ui, const char *title, const cui_list_ite
 CUI_API void cui_virtual_list_begin(cui_ctx *ui, const char *id, int count, float row_height, cui_size height, int *first, int *last);
 CUI_API void cui_virtual_list_end(cui_ctx *ui);
 
-/* Table */
+/* Table: sortable headers and selectable rows show keyboard focus. */
 typedef struct cui_table_column {
     const char *title;         /* text of the column's header */
     cui_size width;            /* default fill */
