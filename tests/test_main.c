@@ -1554,6 +1554,26 @@ static void build_pickers_root(cui_ctx *ui, void *u) {
     cui_row(ui, .width = CUI_FILL, .height = CUI_FILL, .align = CUI_ALIGN_START) { build_pickers(ui, u); }
 }
 
+/** Keep the tape centered in the viewport to send it one wheel step. */
+static void build_bounded_ruler(cui_ctx *ui, void *user) {
+    cui_ruler_slider(ui, "Ruler", user, 0, 1.6f, .step = 1, .width = CUI_PX(230));
+}
+
+/** The wheel can reach a maximum that falls between ruler ticks. */
+static void test_ruler_bound(void) {
+    printf("ruler: wheel snapping stays within bounds\n");
+    cui_ctx *ui = new_ctx();
+    float value = 1;
+    run(ui, build_bounded_ruler, &value, 3);
+    cui_vec2 p = center(cui_last_rect(ui));
+    cui_input_mouse_move(ui, p.x, p.y);
+    run(ui, build_bounded_ruler, &value, 1);
+    cui_input_scroll(ui, 0, -1);
+    run(ui, build_bounded_ruler, &value, 1);
+    CHECK_NEAR(value, 1.6, 1e-6);
+    cui_destroy(ui);
+}
+
 static void test_pickers(void) {
     printf("pickers: multi-select, range calendar, wheel, ruler, dial, dropzone, signature\n");
     cui_ctx *ui = new_ctx();
@@ -8315,6 +8335,7 @@ int main(void) {
     test_calendar_years();
     test_date_picker_reopens_on_days();
     test_pickers();
+    test_ruler_bound();
     test_disclosure();
     test_confirm_popover_keyboard();
     test_checklist();
