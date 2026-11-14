@@ -1237,6 +1237,7 @@ bool cui_calendar(cui_ctx *ui, const char *id_str, cui_date *value) {
     return b.changed;
 }
 
+/** Draw the date trigger with a focus ring when reached by keyboard. */
 bool cui_date_picker_ex(cui_ctx *ui, const char *id_str, cui_date *value, const cui_date_opts *o) {
     cui_date_opts d;
     memset(&d, 0, sizeof d);
@@ -1280,6 +1281,7 @@ bool cui_date_picker_ex(cui_ctx *ui, const char *id_str, cui_date *value, const 
     ui->nodes[t].w = CUI_FILL;
     cui__close(ui);
     if (col >= 0) cui__close(ui);
+    cui__focus_ring(ui, i, r.focus_visible ? 1.0f : 0.0f);
     ui->last_id = id;
     bool changed = false;
     if (cui__popup_begin(ui, pid, id, CUI_PLACE_BOTTOM_START, 0, 12, 0, false)) {
@@ -1370,6 +1372,7 @@ void cui__color_picker_open(cui_ctx *ui, cui_id id, cui_color value) {
     if (p) p->at_mouse = false;
 }
 
+/** Draw the color trigger with a focus ring when reached by keyboard. */
 bool cui_color_picker(cui_ctx *ui, const char *id_str, cui_color *value) {
     cui_id id = cui_make_id(ui, id_str);
     cui_id pid = id ^ 0xC010Eu;
@@ -1406,6 +1409,7 @@ bool cui_color_picker(cui_ctx *ui, const char *id_str, cui_color *value) {
                            cui__fs(ui, ui->theme.text_body), CUI_C(ui, FOREGROUND), false);
     ui->nodes[t].line_height = 1.3f;
     cui__close(ui);
+    cui__focus_ring(ui, i, r.focus_visible ? 1.0f : 0.0f);
     ui->last_id = id;
     if (cui__popup_begin(ui, pid, id, CUI_PLACE_BOTTOM_START, 240, 12, 12, false)) {
         cui_id svid = cui_make_id(ui, "#sv"), hid = cui_make_id(ui, "#hue");

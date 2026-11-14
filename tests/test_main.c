@@ -1574,6 +1574,39 @@ static void test_ruler_bound(void) {
     cui_destroy(ui);
 }
 
+typedef struct { bool color; cui_date date; cui_color rgb; cui_id id; } picker_focus_case;
+
+/** Build just one picker so the first Tab selects its trigger. */
+static void build_picker_focus(cui_ctx *ui, void *user) {
+    picker_focus_case *p = user;
+    cui_column(ui, .pad = 12, .width = CUI_PX(260)) {
+        if (p->color) cui_color_picker(ui, "picker", &p->rgb);
+        else cui_date_picker(ui, "picker", &p->date);
+        p->id = cui_make_id(ui, "picker");
+    }
+}
+
+/** Both trigger types show keyboard focus without opening their popup. */
+static void test_picker_focus_ring(void) {
+    printf("date and color picker: visible keyboard focus\n");
+    enum { width = 300, height = 124, stride = width * 4 };
+    unsigned char initial[height * stride], focused[height * stride];
+    for (int color = 0; color < 2; color++) {
+        cui_ctx *ui = new_ctx();
+        cui_set_viewport(ui, width, height, 1);
+        cui_input_mouse_leave(ui);
+        picker_focus_case p = { .color = color != 0, .date = { 2026, 3, 2 }, .rgb = CUI_RGB(0x7747ff) };
+        run(ui, build_picker_focus, &p, 3);
+        cui_rect r = rect_of(ui, p.id);
+        cui_vec2 top = { r.x + r.w / 2, r.y };
+        cui_sw_render(g_sw, cui_get_draw_data(ui), initial, width, height, stride, CUI_SW_RGBA);
+        key(ui, build_picker_focus, &p, CUI_KEY_TAB, 0);
+        cui_sw_render(g_sw, cui_get_draw_data(ui), focused, width, height, stride, CUI_SW_RGBA);
+        CHECK(focus_strip_changed(initial, focused, stride, height, top));
+        cui_destroy(ui);
+    }
+}
+
 static void test_pickers(void) {
     printf("pickers: multi-select, range calendar, wheel, ruler, dial, dropzone, signature\n");
     cui_ctx *ui = new_ctx();
@@ -8336,6 +8369,7 @@ int main(void) {
     test_date_picker_reopens_on_days();
     test_pickers();
     test_ruler_bound();
+    test_picker_focus_ring();
     test_disclosure();
     test_confirm_popover_keyboard();
     test_checklist();
