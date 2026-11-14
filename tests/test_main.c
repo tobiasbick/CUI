@@ -1627,6 +1627,51 @@ static void test_color_picker_model_update(void) {
     cui_destroy(ui);
 }
 
+typedef struct { bool wheel; int index; float value; } picker_paint_case;
+
+/** Build one focusable picker with visible content at its center. */
+static void build_picker_paint(cui_ctx *ui, void *user) {
+    picker_paint_case *p = user;
+    static const char *const labels[] = { "A", "B", "Center", "D", "E" };
+    cui_column(ui, .pad = 14, .width = CUI_PX(260)) {
+        if (p->wheel) cui_wheel_picker(ui, "Wheel", labels, 5, &p->index, .width = CUI_PX(230));
+        else cui_ruler_slider(ui, "Ruler", &p->value, 0, 100, .width = CUI_PX(230));
+    }
+}
+
+/** Keyboard focus adds a ring while retaining the selected band or ruler ticks. */
+static void test_picker_focus_keeps_content(void) {
+    printf("wheel and ruler: preserve paint under keyboard focus\n");
+    enum { width = 300, height = 240, stride = width * 4 };
+    unsigned char initial[height * stride], focused[height * stride];
+    for (int wheel = 0; wheel < 2; wheel++) {
+        cui_ctx *ui = new_ctx();
+        cui_set_viewport(ui, width, height, 1);
+        cui_input_mouse_leave(ui);
+        picker_paint_case p = { .wheel = wheel != 0, .index = 2, .value = 50 };
+        run(ui, build_picker_paint, &p, 3);
+        cui_rect r = cui_last_rect(ui);
+        cui_vec2 mid = center(r), top = { mid.x, r.y };
+        bool in_bounds = r.w >= 200 && r.h >= 28 && mid.x >= 12 && mid.x + 12 < width &&
+                         mid.y >= 8 && mid.y + 8 < height;
+        CHECK(in_bounds);
+        if (!in_bounds) { cui_destroy(ui); continue; }
+        cui_sw_render(g_sw, cui_get_draw_data(ui), initial, width, height, stride, CUI_SW_RGBA);
+        key(ui, build_picker_paint, &p, CUI_KEY_TAB, 0);
+        cui_sw_render(g_sw, cui_get_draw_data(ui), focused, width, height, stride, CUI_SW_RGBA);
+        CHECK(focus_strip_changed(initial, focused, stride, height, top));
+        bool content_stable = true;
+        int x = (int)mid.x - 12;
+        int y0 = (int)mid.y - 8;
+        for (int y = y0; y < y0 + 16; y++) {
+            int offset = y * stride + x * 4;
+            if (memcmp(initial + offset, focused + offset, 24 * 4) != 0) content_stable = false;
+        }
+        CHECK(content_stable);
+        cui_destroy(ui);
+    }
+}
+
 static void test_pickers(void) {
     printf("pickers: multi-select, range calendar, wheel, ruler, dial, dropzone, signature\n");
     cui_ctx *ui = new_ctx();
@@ -8391,6 +8436,7 @@ int main(void) {
     test_ruler_bound();
     test_picker_focus_ring();
     test_color_picker_model_update();
+    test_picker_focus_keeps_content();
     test_disclosure();
     test_confirm_popover_keyboard();
     test_checklist();
