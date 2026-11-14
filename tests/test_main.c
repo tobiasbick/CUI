@@ -3703,6 +3703,27 @@ static void build_roll(cui_ctx *ui, void *user) {
     roll_ctx *r = user;
     cui_row(ui) { cui_number_roll(ui, "n", r->v, .size = 20); }
 }
+/** Render the same long number as an animated label and as plain tabular text. */
+static void build_number_roll_reference(cui_ctx *ui, void *user) {
+    const char *text = user;
+    cui_row(ui) { cui_text(ui, text, .size = 20, .tabular = true, .nowrap = true); }
+}
+
+/** Over-capacity text keeps every digit and every affix. */
+static void test_long_number_roll(void) {
+    printf("rolling number: complete long numbers and affixes\n");
+    static const char *const values[] = { "1234567890123456789012345", "1 milliseconds per request" };
+    for (int k = 0; k < 2; k++) {
+        cui_ctx *ui = new_ctx(), *reference = new_ctx();
+        roll_ctx r = { values[k] };
+        run(ui, build_roll, &r, 2);
+        run(reference, build_number_roll_reference, (void *)values[k], 2);
+        CHECK(cui_get_draw_data(ui)->vertex_count == cui_get_draw_data(reference)->vertex_count);
+        cui_destroy(reference);
+        cui_destroy(ui);
+    }
+}
+
 static void test_number_roll(void) {
     printf("motion: a rolling number settles on its text, keeps a fixed prefix and fits its width\n");
     cui_ctx *ui = new_ctx();
@@ -8425,6 +8446,7 @@ int main(void) {
     test_tooltip_hover_delay();
     test_truncated_tooltip_covered();
     test_number_roll();
+    test_long_number_roll();
     test_stress();
     test_atlas_pressure();
     cui_sw_destroy(g_sw);
