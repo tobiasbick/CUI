@@ -1393,6 +1393,31 @@ static void test_range_slider_context_menu(void) {
     cui_destroy(ui);
 }
 
+/** Draw the scrub alone to drive its native edit-and-commit path. */
+static void build_scrub_commit(cui_ctx *ui, void *user) {
+    cui_scrub(ui, "Level", user, 0, 100);
+}
+
+/** Reject nonfinite and partial numbers while still accepting a complete draft. */
+static void test_scrub_commit(void) {
+    printf("scrub: finite, complete numeric drafts\n");
+    static const char *const drafts[] = { "nan", "33junk", "1e1000", "42" };
+    cui_ctx *ui = new_ctx();
+    float value = 20;
+    run(ui, build_scrub_commit, &value, 3);
+    key(ui, build_scrub_commit, &value, CUI_KEY_TAB, 0);
+    for (int i = 0; i < 4; i++) {
+        key(ui, build_scrub_commit, &value, CUI_KEY_ENTER, 0);
+        run(ui, build_scrub_commit, &value, 1);
+        key(ui, build_scrub_commit, &value, CUI_KEY_A, CUI_MOD_PRIMARY);
+        type(ui, build_scrub_commit, &value, drafts[i]);
+        key(ui, build_scrub_commit, &value, CUI_KEY_ENTER, 0);
+        CHECK(value == (i == 3 ? 42 : 20));
+        run(ui, build_scrub_commit, &value, 1);
+    }
+    cui_destroy(ui);
+}
+
 static void test_more_inputs(void) {
     printf("inputs: inline edit, scrub, money, shortcut recorder\n");
     cui_ctx *ui = new_ctx();
@@ -8306,6 +8331,7 @@ int main(void) {
     test_more_actions();
     test_toggle_group_arrows();
     test_more_inputs();
+    test_scrub_commit();
     test_range_slider_keyboard();
     test_range_slider_context_menu();
     test_swipe();

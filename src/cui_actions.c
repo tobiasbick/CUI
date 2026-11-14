@@ -930,6 +930,7 @@ static void cui__paint_scrub(cui_ctx *ui, cui_node *n, void *data) {
     }
 }
 
+/** Edit a bounded scrub value and accept only a complete, finite numeric draft. */
 bool cui_scrub_ex(cui_ctx *ui, const char *label, float *value, float min, float max, const cui_scrub_opts *o) {
     cui_scrub_opts d;
     memset(&d, 0, sizeof d);
@@ -1028,7 +1029,7 @@ bool cui_scrub_ex(cui_ctx *ui, const char *label, float *value, float min, float
     if (!cancel && ((f & CUI_SUBMITTED) || ui->focus != fid)) {
         char *end = NULL;
         double v = strtod(st->text, &end);
-        if (end != st->text) *value = cui__clampf((float)v, min, max);
+        if (end != st->text && *end == 0 && isfinite(v)) *value = (float)CUI_CLAMP(v, (double)min, (double)max);
         st->editing = false;
         if (f & CUI_SUBMITTED) ui->focus = id;
     }
