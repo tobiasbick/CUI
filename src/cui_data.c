@@ -243,6 +243,7 @@ bool cui_list_item_ex(cui_ctx *ui, const char *title, const cui_list_item_opts *
 /* ------------------------------------------------------------------------ */
 
 
+/** Build the visible row window using this frame's content height. */
 void cui_virtual_list_begin(cui_ctx *ui, const char *id_str, int count, float row_h, cui_size height, int *first, int *last) {
     cui_id id = cui_make_id(ui, id_str);
     cui_scroll_state *st = cui_state(ui, id, sizeof *st);
@@ -251,15 +252,20 @@ void cui_virtual_list_begin(cui_ctx *ui, const char *id_str, int count, float ro
     b.height = height.kind == CUI_SIZE_FIT ? CUI_FILL : height;
     b.width = CUI_FILL;
     if (row_h <= 0) row_h = 36;
+    count = CUI_MAX(0, count);
     float view_h = st->view_h > 0 ? st->view_h : 400;
-    /* figure out the visible window from the target offset so fast scrolls do not flash */
+    /* Clamp both offsets before opening the viewport so deleted rows cannot leave it empty. */
+    st->content_h = count * row_h;
+    float max_y = CUI_MAX(0, st->content_h - st->view_h);
+    st->y = CUI_MIN(st->y, max_y);
+    st->ty = CUI_MIN(st->ty, max_y);
     cui__scroll_begin_ex(ui, id, &b, false);
     float y = ui->nodes[cui__current(ui)].scroll_y;
     int f = (int)floorf(y / row_h) - 2;
     int l = (int)ceilf((y + view_h) / row_h) + 2;
     if (f < 0) f = 0;
     if (l > count) l = count;
-    if (l < f) l = f;
+    if (f > l) f = l;
     *first = f;
     *last = l;
     /* spacer above */

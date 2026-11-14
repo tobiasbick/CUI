@@ -989,7 +989,7 @@ typedef struct cui_list_item_opts {
 CUI_API bool cui_list_item_ex(cui_ctx *ui, const char *title, const cui_list_item_opts *opts);
 
 /* Virtual list: only the visible rows are built, so lists with a million
- * rows stay fast. Fills first/last with the visible range. */
+ * rows stay fast. Fills first/last with the visible range for this row count. */
 CUI_API void cui_virtual_list_begin(cui_ctx *ui, const char *id, int count, float row_height, cui_size height, int *first, int *last);
 CUI_API void cui_virtual_list_end(cui_ctx *ui);
 
