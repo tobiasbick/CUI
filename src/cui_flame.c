@@ -215,12 +215,13 @@ static void cui__fl_bar(cui_ctx *ui, const cui__fl_paint *p, const cui__fl_item 
     }
 }
 
+/** Paint the graph and register wheel input only when it is interactive. */
 static void cui__paint_flame(cui_ctx *ui, cui_node *n, void *data) {
     cui__fl_paint *p = data;
     cui__fl_state *st = p->st;
     cui_rect r = n->rect;
     /* the wheel goes to the graph while the pointer is over its visible part */
-    {
+    if (p->sid) {
         cui_rect clip = ui->dl.clip_stack[ui->dl.clip_depth - 1];
         float s = ui->scale;
         cui_rect cp = { clip.x / s, clip.y / s, clip.w / s, clip.h / s };
@@ -580,7 +581,7 @@ static cui__fl_paint *cui__flf_build_panel(cui__flf *f, int *node) {
     cui__mark_interactive(ui, en, CUI_IF_FOCUSABLE);
     cui__fl_paint *p = cui__frame_alloc(ui, sizeof *p);
     memset(p, 0, sizeof *p);
-    p->st = f->st; p->sid = f->sid;
+    p->st = f->st; p->sid = cui_is_disabled(ui) ? 0 : f->sid;
     p->t0 = f->v->start; p->t1 = f->v->end; p->origin = f->c.dmin;
     p->row_h = f->c.row_h; p->scroll = f->v->scroll; p->content_h = f->c.rows * f->c.row_h;
     p->empty = !f->has_data;
@@ -724,7 +725,8 @@ cui_flame_result cui_flame_graph_ex(cui_ctx *ui, const char *id_str, const cui_f
     f.mx = ui->mx; f.my = ui->my;
 
     /* input */
-    if (f.has_data && f.has_rect) {
+    if (cui_is_disabled(ui)) st->mode = FL_IDLE;
+    if (f.has_data && f.has_rect && !cui_is_disabled(ui)) {
         f.range = v->end - v->start;
         cui__flf_wheel(&f);
         cui__flf_pointer(&f);
