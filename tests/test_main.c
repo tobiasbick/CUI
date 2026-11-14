@@ -6326,11 +6326,17 @@ static void test_disabled_flame_shrinks(void) {
     printf("flame graph: disabled view follows a smaller dataset\n");
     cui_flame_span deep[20];
     for (int i = 0; i < 20; i++) deep[i] = (cui_flame_span){ "frame", 0, 10, i, 0 };
+    deep[1].end = 1;
     static const cui_flame_span shallow = { "frame", 4, 6, 0, 0 };
     cui_ctx *ui = new_ctx();
     flame_ctx f = { .s = deep, .n = 20, .sel = -1, .height = 200 };
     run(ui, build_flame, &f, 3);
     f.view.scroll = 100;
+    cui_set_reduced_motion(ui, false);
+    f.sel = 1;
+    key(ui, build_flame, &f, CUI_KEY_TAB, 0);
+    key(ui, build_flame, &f, CUI_KEY_ENTER, 0);
+    CHECK(f.last.zoomed == 1 && f.view.end > 6);
     run(ui, build_flame, &f, 1);
     CHECK(f.view.scroll == 100);
     f.s = &shallow;
@@ -6338,6 +6344,8 @@ static void test_disabled_flame_shrinks(void) {
     run(ui, build_disabled_flame, &f, 1);
     CHECK(f.view.scroll == 0);
     CHECK(f.view.start == 4 && f.view.end == 6 && f.last.view_changed);
+    run(ui, build_flame, &f, 1);
+    CHECK(f.view.start == 4 && f.view.end == 6);
     cui_destroy(ui);
 }
 

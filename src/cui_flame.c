@@ -559,7 +559,12 @@ static void cui__flf_move_view(cui__flf *f, bool animate) {
         v->start = s0; v->end = s1;
         if (pr >= 1.0f && st->anim.v == 0) { v->start = st->b0; v->end = st->b1; st->anim_on = false; }
     } else {
+        double start = v->start, end = v->end;
         cui__fl_clamp(&f->c, v, f->min_range);
+        /* A paused zoom must not restore bounds from an older dataset. */
+        if (st->anim_on && (v->start != start || v->end != end ||
+                            st->a0 < f->c.dmin || st->a1 > f->c.dmax ||
+                            st->b0 < f->c.dmin || st->b1 > f->c.dmax)) st->anim_on = false;
     }
     cui__fl_clamp_scroll(&f->c, v);
 }
