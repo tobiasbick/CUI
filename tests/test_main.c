@@ -5292,6 +5292,27 @@ static void build_motion(cui_ctx *ui, void *u) {
     }
 }
 
+/** Four tabs make it possible to distinguish a single step from a cascade. */
+static void build_tab_step(cui_ctx *ui, void *user) {
+    static const cui_tab_bar_item tabs[] = { { NULL, "Home", 0 }, { NULL, "Search", 0 },
+                                             { NULL, "Inbox", 0 }, { NULL, "Profile", 0 } };
+    cui_tab_bar(ui, "tabs", tabs, 4, user);
+}
+
+/** Each key moves one tab and the next key starts at the new focus. */
+static void test_tab_step(void) {
+    printf("tab bar: one step per arrow press\n");
+    cui_ctx *ui = new_ctx();
+    int selected = 0;
+    run(ui, build_tab_step, &selected, 3);
+    key(ui, build_tab_step, &selected, CUI_KEY_TAB, 0);
+    key(ui, build_tab_step, &selected, CUI_KEY_RIGHT, 0);
+    CHECK(selected == 1);
+    key(ui, build_tab_step, &selected, CUI_KEY_LEFT, 0);
+    CHECK(selected == 0);
+    cui_destroy(ui);
+}
+
 static void test_motion(void) {
     printf("motion: typewriter streams and restarts, tiles, tab bar, waveform seek, player, dock\n");
     cui_ctx *ui = new_ctx();
@@ -8409,6 +8430,7 @@ int main(void) {
     test_media();
     test_viz();
     test_motion();
+    test_tab_step();
     test_ai();
     test_text_capacity();
     test_dialog();
