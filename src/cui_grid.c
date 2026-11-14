@@ -72,6 +72,7 @@ static void cui__paint_grid_row(cui_ctx *ui, cui_node *n, void *data) {
 
 typedef struct { float hover; } cui__grid_head_paint;
 
+/** Open the grid and return the visible row range for the current row count. */
 bool cui_data_grid_begin_ex(cui_ctx *ui, const char *id_str, const cui_grid_column *cols, int ncols, int nrows,
                             int *first, int *last, const cui_grid_opts *o) {
     cui_grid_opts d;
@@ -117,6 +118,11 @@ bool cui_data_grid_begin_ex(cui_ctx *ui, const char *id_str, const cui_grid_colu
     total += b->extra;
     b->total_w = total;
     float view_h = ss->view_h > 0 ? ss->view_h : 400;
+    /* Keep the scroll position in the new row range before choosing which rows to build. */
+    ss->content_h = CUI__GRID_HEAD + nrows * b->row_h;
+    float max_y = CUI_MAX(0, ss->content_h - ss->view_h);
+    ss->y = CUI_MIN(ss->y, max_y);
+    ss->ty = CUI_MIN(ss->ty, max_y);
     int f = (int)floorf((ss->y - CUI__GRID_HEAD) / b->row_h) - 2;
     if (f < 0) f = 0;
     int l = f + (int)ceilf(view_h / b->row_h) + 5;
