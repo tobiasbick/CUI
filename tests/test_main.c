@@ -1418,6 +1418,32 @@ static void test_scrub_commit(void) {
     cui_destroy(ui);
 }
 
+/** Draw a money input with its default two decimal places. */
+static void build_money_capacity(cui_ctx *ui, void *user) {
+    cui_money_input(ui, "amount", user);
+}
+
+/** Reject a draft that cannot fit once digits are grouped for display. */
+static void test_money_capacity(void) {
+    printf("money input: reject drafts beyond the grouped display capacity\n");
+    cui_ctx *ui = new_ctx();
+    double value = 25.0;
+    run(ui, build_money_capacity, &value, 3);
+    key(ui, build_money_capacity, &value, CUI_KEY_TAB, 0);
+    key(ui, build_money_capacity, &value, CUI_KEY_A, CUI_MOD_PRIMARY);
+    char huge[64];
+    memset(huge, '9', sizeof huge - 1);
+    huge[sizeof huge - 1] = 0;
+    type(ui, build_money_capacity, &value, huge);
+    CHECK(value == 25.0);
+    key(ui, build_money_capacity, &value, CUI_KEY_A, CUI_MOD_PRIMARY);
+    type(ui, build_money_capacity, &value, "35.50");
+    CHECK(value == 35.5);
+    key(ui, build_money_capacity, &value, CUI_KEY_TAB, 0);
+    CHECK(value == 35.5);
+    cui_destroy(ui);
+}
+
 static void test_more_inputs(void) {
     printf("inputs: inline edit, scrub, money, shortcut recorder\n");
     cui_ctx *ui = new_ctx();
@@ -8332,6 +8358,7 @@ int main(void) {
     test_toggle_group_arrows();
     test_more_inputs();
     test_scrub_commit();
+    test_money_capacity();
     test_range_slider_keyboard();
     test_range_slider_context_menu();
     test_swipe();
