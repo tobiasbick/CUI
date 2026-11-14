@@ -5338,7 +5338,7 @@ static void build_tab_step(cui_ctx *ui, void *user) {
     cui_tab_bar(ui, "tabs", tabs, 4, user);
 }
 
-/** Each key moves one tab and the next key starts at the new focus. */
+/** Each arrow moves one tab unless a mouse press takes focus in that frame. */
 static void test_tab_step(void) {
     printf("tab bar: one step per arrow press\n");
     cui_ctx *ui = new_ctx();
@@ -5349,6 +5349,17 @@ static void test_tab_step(void) {
     CHECK(selected == 1);
     key(ui, build_tab_step, &selected, CUI_KEY_LEFT, 0);
     CHECK(selected == 0);
+    cui_rect bar = cui_last_rect(ui);
+    cui_input_mouse_move(ui, bar.x + bar.w * 0.875f, bar.y + bar.h / 2);
+    run(ui, build_tab_step, &selected, 1);
+    cui_input_key(ui, CUI_KEY_RIGHT, true, 0);
+    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, true);
+    run(ui, build_tab_step, &selected, 1);
+    CHECK(selected == 0);
+    cui_input_key(ui, CUI_KEY_RIGHT, false, 0);
+    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, false);
+    run(ui, build_tab_step, &selected, 1);
+    CHECK(selected == 3);
     cui_destroy(ui);
 }
 
