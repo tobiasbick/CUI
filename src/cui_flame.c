@@ -547,12 +547,12 @@ static void cui__flf_keys(cui__flf *f) {
     }
 }
 
-/* the view: glides to a zoom's target, or stays inside the data */
-static void cui__flf_move_view(cui__flf *f) {
+/** Keep the view inside the data and advance zoom animations when enabled. */
+static void cui__flf_move_view(cui__flf *f, bool animate) {
     cui__fl_state *st = f->st;
     cui_flame_view *v = f->v;
     if (f->user_moved) st->anim_on = false;
-    if (st->anim_on) {
+    if (animate && st->anim_on) {
         float pr = cui__spring(f->ui, &st->anim, 1.0f, CUI__SPRING_EXPAND);
         double s0, s1;
         cui__fl_lerp(st, pr >= 1.0f ? 1.0 : (double)pr, &s0, &s1);
@@ -725,14 +725,17 @@ cui_flame_result cui_flame_graph_ex(cui_ctx *ui, const char *id_str, const cui_f
     f.mx = ui->mx; f.my = ui->my;
 
     /* input */
-    if (cui_is_disabled(ui)) st->mode = FL_IDLE;
-    if (f.has_data && f.has_rect && !cui_is_disabled(ui)) {
+    bool disabled = cui_is_disabled(ui);
+    if (disabled) st->mode = FL_IDLE;
+    if (f.has_data && f.has_rect && !disabled) {
         f.range = v->end - v->start;
         cui__flf_wheel(&f);
         cui__flf_pointer(&f);
         if (f.bi.focused && !ui->edit_prev) cui__flf_keys(&f);
-        cui__flf_move_view(&f);
-    } else if (!f.has_data) {
+    }
+    if (f.has_data) {
+        if (disabled || f.has_rect) cui__flf_move_view(&f, !disabled);
+    } else {
         st->mode = FL_IDLE;
         st->anim_on = false;
         if (*sel != -1) *sel = -1;

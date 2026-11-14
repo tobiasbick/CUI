@@ -6321,6 +6321,26 @@ static void test_disabled_flame_wheel(void) {
     cui_destroy(ui);
 }
 
+/** A disabled graph still fits its view to the current spans. */
+static void test_disabled_flame_shrinks(void) {
+    printf("flame graph: disabled view follows a smaller dataset\n");
+    cui_flame_span deep[20];
+    for (int i = 0; i < 20; i++) deep[i] = (cui_flame_span){ "frame", 0, 10, i, 0 };
+    static const cui_flame_span shallow = { "frame", 4, 6, 0, 0 };
+    cui_ctx *ui = new_ctx();
+    flame_ctx f = { .s = deep, .n = 20, .sel = -1, .height = 200 };
+    run(ui, build_flame, &f, 3);
+    f.view.scroll = 100;
+    run(ui, build_flame, &f, 1);
+    CHECK(f.view.scroll == 100);
+    f.s = &shallow;
+    f.n = 1;
+    run(ui, build_disabled_flame, &f, 1);
+    CHECK(f.view.scroll == 0);
+    CHECK(f.view.start == 4 && f.view.end == 6 && f.last.view_changed);
+    cui_destroy(ui);
+}
+
 static void test_flame(void) {
     printf("flame graph: fit, select, keys, zoom about the pointer, pan, zoom to span, reset, tooltip, 100k spans, empty\n");
     static const cui_flame_span small[] = {
@@ -8473,6 +8493,7 @@ int main(void) {
     test_disabled_node_editor_wheel();
     test_flame();
     test_disabled_flame_wheel();
+    test_disabled_flame_shrinks();
     test_disabled_timeline_wheel();
     test_curve_eval();
     test_curve_editor();
