@@ -1710,6 +1710,32 @@ static void test_confirm_popover_keyboard(void) {
     cui_destroy(ui);
 }
 
+/** Draw just the expandable text so Tab reaches its toggle. */
+static void build_expandable_focus(cui_ctx *ui, void *user) {
+    bool *toggled = user;
+    cui_column(ui, .width = CUI_PX(240)) {
+        *toggled = cui_expandable_text(ui, "expandable", "First line\nSecond line\nThird line", .lines = 1);
+    }
+}
+
+/** Both activation keys still work when the toggle's label changes. */
+static void test_expandable_focus(void) {
+    printf("expandable text: preserve focus after toggling\n");
+    cui_ctx *ui = new_ctx();
+    bool toggled = false;
+    run(ui, build_expandable_focus, &toggled, 3);
+    key(ui, build_expandable_focus, &toggled, CUI_KEY_TAB, 0);
+    key(ui, build_expandable_focus, &toggled, CUI_KEY_ENTER, 0);
+    CHECK(toggled);
+    run(ui, build_expandable_focus, &toggled, 1);
+    key(ui, build_expandable_focus, &toggled, CUI_KEY_SPACE, 0);
+    CHECK(toggled);
+    run(ui, build_expandable_focus, &toggled, 1);
+    key(ui, build_expandable_focus, &toggled, CUI_KEY_ENTER, 0);
+    CHECK(toggled);
+    cui_destroy(ui);
+}
+
 static void test_disclosure(void) {
     printf("disclosure: hover card, confirm popover, expandables, toc, banner, checklist\n");
     cui_ctx *ui = new_ctx();
@@ -8316,6 +8342,7 @@ int main(void) {
     test_date_picker_reopens_on_days();
     test_pickers();
     test_disclosure();
+    test_expandable_focus();
     test_confirm_popover_keyboard();
     test_checklist();
     test_data_grid();

@@ -110,6 +110,7 @@ static void cui__paint_text_fade(cui_ctx *ui, cui_node *n, void *data) {
     cui_draw_rect_gradient(ui, (cui_rect){ r.x, r.y + r.h - h, r.w, h }, CUI_CORNERS(0), clear, cui_alpha(p->c, p->fade * 0.82f));
 }
 
+/** Draw expandable text with a toggle that keeps its identity when its label changes. */
 bool cui_expandable_text_ex(cui_ctx *ui, const char *id_str, const char *text, const cui_expandable_text_opts *o) {
     cui_expandable_text_opts d;
     memset(&d, 0, sizeof d);
@@ -152,7 +153,7 @@ bool cui_expandable_text_ex(cui_ctx *ui, const char *id_str, const char *text, c
     cui__close(ui);
     if (expandable) {
         cui_push_id(ui, id_str);
-        if (cui_link(ui, st->open ? "Show less" : "Show more")) { st->open = !st->open; toggled = true; }
+        if (cui_link(ui, st->open ? "Show less###expand" : "Show more###expand")) { st->open = !st->open; toggled = true; }
         cui_pop_id(ui);
     }
     cui__close(ui);
