@@ -1165,6 +1165,45 @@ static void test_more_actions(void) {
     cui_destroy(ui);
 }
 
+typedef struct { int chosen; bool caller_scope_intact; } dial_scope_case;
+
+/** Use a false scope around the dial, leaving enough room to probe the stack. */
+static void build_dial_scope(cui_ctx *ui, void *user) {
+    dial_scope_case *c = user;
+    static const cui_speed_action action = { CUI_ICON_PLUS, "Add" };
+    cui_column(ui, .pad = 25) {
+        cui_push_disabled(ui, false);
+        c->chosen = cui_speed_dial(ui, "scope dial", &action, 1, .placement = CUI_PLACE_BOTTOM_START);
+        /* A full false stack cannot record the extra false push. The first
+           pop must remove the true entry if the dial kept our first one. */
+        if (c->chosen == 0) {
+            cui_push_disabled(ui, true);
+            for (int i = 0; i < 31; i++) cui_push_disabled(ui, false);
+            for (int i = 0; i < 30; i++) cui_pop_disabled(ui);
+            cui_pop_disabled(ui);
+            c->caller_scope_intact = !cui_is_disabled(ui);
+        }
+        cui_pop_disabled(ui);
+    }
+}
+
+/** The scope depth is unchanged when keyboard activation closes the dial. */
+static void test_dial_scope(void) {
+    printf("speed dial: action preserves the caller scope\n");
+    cui_ctx *ui = new_ctx();
+    cui_set_reduced_motion(ui, false);
+    dial_scope_case c = {0};
+    run(ui, build_dial_scope, &c, 3);
+    key(ui, build_dial_scope, &c, CUI_KEY_TAB, 0);
+    key(ui, build_dial_scope, &c, CUI_KEY_ENTER, 0);
+    run(ui, build_dial_scope, &c, 40);
+    key(ui, build_dial_scope, &c, CUI_KEY_TAB, 0);
+    key(ui, build_dial_scope, &c, CUI_KEY_ENTER, 0);
+    CHECK(c.chosen == 0);
+    CHECK(c.caller_scope_intact);
+    cui_destroy(ui);
+}
+
 typedef struct { char title[64]; float v; double money; cui_key_combo combo; int edit_flags; cui_id title_id, scrub_id, money_id, rec_id, other_id; char other[16]; } inp_ctx;
 static void build_more_inputs(cui_ctx *ui, void *u) {
     inp_ctx *a = u;
@@ -8387,6 +8426,7 @@ int main(void) {
     test_searchable_select_reopen();
     test_more_actions();
     test_toggle_group_arrows();
+    test_dial_scope();
     test_more_inputs();
     test_range_slider_keyboard();
     test_range_slider_context_menu();
