@@ -775,6 +775,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
     float s = x->scale;
     switch (ev->type) {
     case MapNotify:
+    case ReparentNotify:
     case PropertyNotify:
         cui__x11_title_bar_event(&x->title_bar, app, ev);
         break;
@@ -786,6 +787,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
         if (ev->xselection.property == x->cui_xdnd || (ev->xselection.selection == x->xdnd_selection)) cui__x11_xdnd_selection(app, &ev->xselection);
         break;
     case ConfigureNotify:
+        cui__x11_title_bar_event(&x->title_bar, app, ev);
         x->geometry_changed = true;
         if (ev->xconfigure.width != x->width || ev->xconfigure.height != x->height) {
             x->width = ev->xconfigure.width;
@@ -794,6 +796,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
         }
         break;
     case Expose:
+        cui__x11_title_bar_event(&x->title_bar, app, ev);
         app->force_present = true;
         cui_request_redraw(ui);
         break;

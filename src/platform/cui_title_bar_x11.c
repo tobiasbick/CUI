@@ -60,24 +60,27 @@ void cui__x11_title_bar_release(cui__x11_title_bar *bar) {
     for (int i = 0; i < 8; i++) if (bar->cursors[i]) XFreeCursor(bar->dpy, bar->cursors[i]);
 }
 
-/* True when the window manager took the decorations away. A reparenting window manager can
- * keep a shadow around the window, so its frame may be larger, but no taller on top than on
- * the other sides; XWayland reports frame extents even for a frame that is only a shadow. */
-static bool cui__x11_tb_undecorated(const cui__x11_title_bar *bar) {
+/* 1 when the window manager took the decorations away, 0 when it kept them, -1 while its frame
+ * is not laid out yet: KWin maps the frame at 1 by 1 and sizes it afterwards. A reparenting
+ * window manager can keep a shadow around the window, so its frame may be larger, but no
+ * taller on top than on the other sides; XWayland reports frame extents even for a frame that
+ * is only a shadow. */
+static int cui__x11_tb_undecorated(const cui__x11_title_bar *bar) {
     Window root, parent, *children = NULL;
     unsigned int n;
-    if (!XQueryTree(bar->dpy, bar->win, &root, &parent, &children, &n)) return false;
+    if (!XQueryTree(bar->dpy, bar->win, &root, &parent, &children, &n)) return -1;
     if (children) XFree(children);
     if (parent != root) {
         int x, y, px, py;
         unsigned int w, h, pw, ph, border, depth;
-        return XGetGeometry(bar->dpy, bar->win, &root, &x, &y, &w, &h, &border, &depth) &&
-               XGetGeometry(bar->dpy, parent, &root, &px, &py, &pw, &ph, &border, &depth) &&
-               y <= x && y <= (int)ph - (int)h - y && y <= (int)pw - (int)w - x;
+        if (!XGetGeometry(bar->dpy, bar->win, &root, &x, &y, &w, &h, &border, &depth) ||
+            !XGetGeometry(bar->dpy, parent, &root, &px, &py, &pw, &ph, &border, &depth) || pw < w || ph < h)
+            return -1;
+        return y <= x && y <= (int)ph - (int)h - y && y <= (int)pw - (int)w - x;
     }
     unsigned long count;
     unsigned long *extents = cui__x11_tb_property(bar->dpy, bar->win, bar->frame_extents, XA_CARDINAL, &count);
-    bool undecorated = count == 4 && !extents[0] && !extents[1] && !extents[2] && !extents[3];
+    int undecorated = count == 4 ? !extents[0] && !extents[1] && !extents[2] && !extents[3] : -1;
     if (extents) XFree(extents);
     return undecorated;
 }
@@ -86,8 +89,13 @@ void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEven
     if (!bar->dpy) return;
     bool mapped = ev->type == MapNotify;
     bool property = ev->type == PropertyNotify;
-    if (mapped || (property && ev->xproperty.atom == bar->frame_extents)) {
-        app->title_bar = cui__x11_tb_undecorated(bar);
+    if (mapped) bar->frame_known = false;
+    /* until the frame is laid out, each move or resize of it asks again */
+    bool placed = !bar->frame_known && (ev->type == ConfigureNotify || ev->type == ReparentNotify || ev->type == Expose);
+    if (mapped || placed || (property && ev->xproperty.atom == bar->frame_extents)) {
+        int undecorated = cui__x11_tb_undecorated(bar);
+        bar->frame_known = undecorated >= 0;
+        app->title_bar = undecorated > 0;
         app->title_bar_edge = app->title_bar;   /* without decorations a window manager draws no border */
         cui_request_redraw(app->ui);
     }
