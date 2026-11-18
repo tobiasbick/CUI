@@ -819,11 +819,12 @@ void cui_begin_frame(cui_ctx *ui, float dt) {
     if (dt > 3600.0f) dt = 3600.0f;
     ui->in_frame = true;
     ui->dt = CUI_MIN(dt, 0.25f);
-    /* After a frame that asked for no other the host could sleep until input came, so dt holds
-     * the rest. A transition that starts now (a hover fade, a spring) takes one frame's step
-     * instead and runs its course; dt and the clock keep the real time for timers and
-     * cui_delta_time. */
-    ui->step = ui->wanted_frame ? ui->dt : CUI_MIN(ui->dt, 1.0f / 60.0f);
+    /* After a frame that asked for no other the host could sleep until input came, and a dt
+     * longer than a frame at 20 Hz is that rest. A transition that starts now (a hover fade, a
+     * spring) takes one 60 Hz frame's step instead and runs its course. A host that draws on
+     * its own at a lower rate keeps its dt, and dt and the clock keep the real time for timers
+     * and cui_delta_time. */
+    ui->step = !ui->wanted_frame && ui->dt > 0.05f ? 1.0f / 60.0f : ui->dt;
     ui->time += dt;
     cui__flush_clicks(ui);
     ui->frame++;
