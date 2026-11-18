@@ -88,6 +88,7 @@ void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEven
     bool property = ev->type == PropertyNotify;
     if (mapped || (property && ev->xproperty.atom == bar->frame_extents)) {
         app->title_bar = cui__x11_tb_undecorated(bar);
+        app->title_bar_edge = app->title_bar;   /* without decorations a window manager draws no border */
         cui_request_redraw(app->ui);
     }
     if (mapped || (property && ev->xproperty.atom == bar->net_wm_state)) {
@@ -124,11 +125,11 @@ static void cui__x11_tb_send(const cui__x11_title_bar *bar, long a, long b, long
 
 bool cui__x11_title_bar_button(cui__x11_title_bar *bar, cui_app *app, const XButtonEvent *ev, float scale, int w, int h) {
     if (!bar->dpy || !app->title_bar || ev->button != Button1) return false;
-    if (ev->type == ButtonRelease) {
-        bool handed_over = bar->handed_over;
-        bar->handed_over = false;
-        return handed_over;
-    }
+    bool handed_over = bar->handed_over;
+    bar->handed_over = false;
+    /* the release of a press the title bar took. A window manager that moved or sized the
+     * window keeps that release in its grab, so any press clears what is left over. */
+    if (ev->type == ButtonRelease) return handed_over;
     int dir = cui__x11_tb_edge(bar, app, ev->x, ev->y, scale, w, h);
     if (dir == CUI__X11_NO_EDGE && cui_title_bar_hit_test(app->ui, ev->x / scale, ev->y / scale) == CUI_TITLE_BAR_CAPTION)
         dir = CUI__X11_MOVE;

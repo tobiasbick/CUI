@@ -180,6 +180,13 @@ void cui__app_set_clipboard_cache(cui_app *app, const char *utf8) {
 
 void cui__app_render(cui_app *app) {
     if (app->in_frame) {
+        cui_ctx *ui = app->ui;
+        /* a window that lost its frame with the title bar: a hairline over the content's edge
+         * stands in for the border, also over the app's own colors */
+        if (app->title_bar && app->title_bar_edge && !app->title_bar_maximized && ui->node_count > 0) {
+            ui->nodes[0].border = 1.0f / ui->scale;   /* one pixel, as a system border is */
+            ui->nodes[0].border_color = ui->theme.colors[CUI_TOKEN_BORDER];
+        }
         cui_end_frame(app->ui);
         app->in_frame = false;
     }

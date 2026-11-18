@@ -31,6 +31,7 @@ struct cui_app {
     void *plat;                /* backend state */
     bool title_bar;            /* desc.custom_title_bar took effect: the system's title bar is gone */
     bool title_bar_maximized;  /* kept by the backend while title_bar is set */
+    bool title_bar_edge;       /* the system draws no border either: CUI draws a hairline around the content */
     char *clipboard;           /* last clipboard string handed to CUI */
     const char *screenshot_path;  /* CUI_SCREENSHOT: save a PNG and quit */
     int screenshot_frames;

@@ -970,27 +970,31 @@ typedef struct { cui_window_button kind; cui_color c; } cui__window_glyph;
 /* A whole number of device pixels, so the glyph's lines stay sharp. */
 static float cui__snap(const cui_ctx *ui, float v) { return roundf(v * ui->scale) / ui->scale; }
 
+/* The outline of a square with sides s and lines t thick. */
+static void cui__glyph_square(cui_ctx *ui, float x, float y, float s, float t, cui_color c) {
+    cui_draw_rect(ui, (cui_rect){ x, y, s, t }, CUI_CORNERS(0), c);
+    cui_draw_rect(ui, (cui_rect){ x, y + s - t, s, t }, CUI_CORNERS(0), c);
+    cui_draw_rect(ui, (cui_rect){ x, y, t, s }, CUI_CORNERS(0), c);
+    cui_draw_rect(ui, (cui_rect){ x + s - t, y, t, s }, CUI_CORNERS(0), c);
+}
+
 /* The 10 point line glyphs of the window buttons: a dash, a square, two squares and a cross. */
 static void cui__paint_window_glyph(cui_ctx *ui, cui_node *n, void *data) {
     const cui__window_glyph *g = data;
     float t = fmaxf(1.0f, floorf(ui->scale)) / ui->scale, s = cui__snap(ui, 10);
     float x = cui__snap(ui, n->rect.x + (n->rect.w - s) * 0.5f), y = cui__snap(ui, n->rect.y + (n->rect.h - s) * 0.5f);
+    float d = cui__snap(ui, 2);   /* restore: the square behind shows along the top and the right */
     switch (g->kind) {
     case CUI_WINDOW_BUTTON_MINIMIZE:
         cui_draw_rect(ui, (cui_rect){ x, cui__snap(ui, y + s * 0.5f), s, t }, CUI_CORNERS(0), g->c);
         break;
-    case CUI_WINDOW_BUTTON_RESTORE: {
-        float d = cui__snap(ui, 2);   /* the square behind shows along the top and the right */
+    case CUI_WINDOW_BUTTON_MAXIMIZE:
+        cui__glyph_square(ui, x, y, s, t, g->c);
+        break;
+    case CUI_WINDOW_BUTTON_RESTORE:
         cui_draw_rect(ui, (cui_rect){ x + d, y, s - d, t }, CUI_CORNERS(0), g->c);
         cui_draw_rect(ui, (cui_rect){ x + s - t, y, t, s - d }, CUI_CORNERS(0), g->c);
-        y += d;
-        s -= d;
-    }   /* fall through: the square in front */
-    case CUI_WINDOW_BUTTON_MAXIMIZE:
-        cui_draw_rect(ui, (cui_rect){ x, y, s, t }, CUI_CORNERS(0), g->c);
-        cui_draw_rect(ui, (cui_rect){ x, y + s - t, s, t }, CUI_CORNERS(0), g->c);
-        cui_draw_rect(ui, (cui_rect){ x, y, t, s }, CUI_CORNERS(0), g->c);
-        cui_draw_rect(ui, (cui_rect){ x + s - t, y, t, s }, CUI_CORNERS(0), g->c);
+        cui__glyph_square(ui, x, y + d, s - d, t, g->c);
         break;
     case CUI_WINDOW_BUTTON_CLOSE:
         cui_draw_line(ui, (cui_vec2){ x, y }, (cui_vec2){ x + s, y + s }, t, g->c);
