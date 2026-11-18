@@ -2150,9 +2150,30 @@ Keyboard: Tab focuses the orb, and Enter or Space clicks it.
 
 ## App chrome
 
-The parts around a desktop window's content: a menu bar, a toolbar, document tabs and a status bar. The bars have no fill of their own and draw a hairline on their inner edge, so they take the color of whatever holds them. In the picture the window's chrome sits in a muted box and the content in a white one.
+The parts around a desktop window's content: a title bar, a menu bar, a toolbar, document tabs and a status bar. The bars have no fill of their own and draw a hairline on their inner edge, so they take the color of whatever holds them. In the picture the window's chrome sits in a muted box and the content in a white one.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="images/components/app-chrome-dark.png"><img src="images/components/app-chrome.png" alt="Menu bar, toolbar, document tabs and status bar in one window"></picture>
+
+### Title bar
+
+The top row of a window that draws its own title bar, with the app's controls beside the window buttons, as in a browser or an editor.
+
+```c
+cui_app_run(&(cui_app_desc){ .title = "Notes", .custom_title_bar = true }, frame, NULL);
+
+/* in frame() */
+cui_title_bar(ui, "title", .icon = CUI_ICON_NOTEBOOK, .title = "Notes") {
+    if (cui_icon_button(ui, CUI_ICON_ARROW_LEFT, .size = CUI_SIZE_SM, .tooltip = "Back")) back();
+    cui_spacer(ui);
+    cui_search(ui, "find", query, sizeof query, .placeholder = "Search", .size = CUI_SIZE_SM, .width = CUI_PX(280));
+    cui_spacer(ui);
+    if (cui_icon_button(ui, CUI_ICON_SETTINGS, .size = CUI_SIZE_SM, .tooltip = "Settings")) settings();
+}
+```
+
+The bar is 40 points high, so the controls in it take `CUI_SIZE_SM`. The icon (in the accent color) and the title come first, then your controls; `cui_spacer` pushes the ones after it to the end. The window buttons follow at the right edge: minimize, maximize (restore while maximized; none for a `fixed_size` window) and close, which turns red under the pointer. They are not in the Tab order, as on the system's title bar. The bar's empty space and its title move the window, and a double click there maximizes and restores it; the window keeps its border, its shadow and its resizing. On Windows 11, resting the pointer on the maximize button opens the snap layouts. The title and the window buttons dim while the window is in the background.
+
+With `cui_app_desc.custom_title_bar` the system's title bar goes on Windows, and on Linux under an X11 window manager that supports EWMH and drops its decorations on request. Elsewhere (macOS, SDL2, GLFW, Wayland, or without `custom_title_bar`) the system keeps its title bar and `cui_title_bar` is the same bar without the window buttons, so one layout serves both. A platform layer of your own reports the window through the optional `window_frame` and `window_button` hooks of `cui_platform_iface` and asks `cui_title_bar_hit_test` which points move the window.
 
 ### Menu bar
 

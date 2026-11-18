@@ -1,7 +1,8 @@
 /* Title bar: a window that draws its own title bar with cui_title_bar, with
  * navigation, a search field and actions beside the window buttons.
  * --system-frame keeps the system's title bar (the same bar, without window
- * buttons), --fixed-size makes the window not resizable. */
+ * buttons), --fixed-size makes the window not resizable and --software draws
+ * with the software renderer. */
 #include <cui/cui.h>
 #include <cui/cui_app.h>
 
@@ -41,6 +42,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--system-frame") == 0) desc.custom_title_bar = false;
         if (strcmp(argv[i], "--fixed-size") == 0) desc.fixed_size = true;
+        if (strcmp(argv[i], "--software") == 0) desc.renderer = CUI_RENDERER_SOFTWARE;
     }
     demo d;
     memset(&d, 0, sizeof d);
