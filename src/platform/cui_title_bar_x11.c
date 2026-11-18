@@ -123,43 +123,66 @@ static void cui__x11_tb_send(const cui__x11_title_bar *bar, long a, long b, long
     XFlush(bar->dpy);
 }
 
+/* Lets the window manager move (CUI__X11_MOVE) or size the window from a press at x, y. */
+static void cui__x11_tb_hand_over(cui__x11_title_bar *bar, int x_root, int y_root, int dir, Time time) {
+    /* the window manager grabs the pointer: give up the grab the press started */
+    XUngrabPointer(bar->dpy, time);
+    cui__x11_tb_send(bar, x_root, y_root, dir, Button1, 1 /* source: application */);
+    bar->press = CUI__X11_PRESS_TAKEN;
+}
+
 bool cui__x11_title_bar_button(cui__x11_title_bar *bar, cui_app *app, const XButtonEvent *ev, float scale, int w, int h) {
     if (!bar->dpy || !app->title_bar || ev->button != Button1) return false;
-    bool handed_over = bar->handed_over;
-    bar->handed_over = false;
-    /* the release of a press the title bar took. A window manager that moved or sized the
-     * window keeps that release in its grab, so any press clears what is left over. */
-    if (ev->type == ButtonRelease) return handed_over;
+    if (ev->type == ButtonRelease) {
+        bool took = bar->press != CUI__X11_PRESS_NONE;
+        bar->press = CUI__X11_PRESS_NONE;
+        return took;
+    }
+    /* a window manager that moved or sized the window kept the last release in its grab */
+    bar->press = CUI__X11_PRESS_NONE;
     int dir = cui__x11_tb_edge(bar, app, ev->x, ev->y, scale, w, h);
-    if (dir == CUI__X11_NO_EDGE && cui_title_bar_hit_test(app->ui, ev->x / scale, ev->y / scale) == CUI_TITLE_BAR_CAPTION)
-        dir = CUI__X11_MOVE;
-    if (dir == CUI__X11_NO_EDGE) {
-        bar->last_press = 0;
+    if (dir != CUI__X11_NO_EDGE) {
+        bar->last_click = 0;
+        cui__x11_tb_hand_over(bar, ev->x_root, ev->y_root, dir, ev->time);
+        return true;
+    }
+    if (cui_title_bar_hit_test(app->ui, ev->x / scale, ev->y / scale) != CUI_TITLE_BAR_CAPTION) {
+        bar->last_click = 0;
         return false;
     }
-    bool twice = dir == CUI__X11_MOVE && bar->last_press && (Time)(ev->time - bar->last_press) <= CUI__X11_DOUBLE_CLICK_MS &&
-                 abs(ev->x_root - bar->last_x) <= 4 * scale && abs(ev->y_root - bar->last_y) <= 4 * scale;
+    bool twice = bar->last_click && (Time)(ev->time - bar->last_click) <= CUI__X11_DOUBLE_CLICK_MS &&
+                 abs(ev->x_root - bar->press_x) <= 4 * scale && abs(ev->y_root - bar->press_y) <= 4 * scale;
     if (twice) {
         /* a double click on the caption maximizes or restores, as on the window manager's own */
-        bar->last_press = 0;
+        bar->last_click = 0;
+        bar->press = CUI__X11_PRESS_TAKEN;
         if (bar->resizable) {
             if (app->title_bar_maximized) cui_app_restore(app);
             else cui_app_maximize(app);
         }
-    } else {
-        bar->last_press = dir == CUI__X11_MOVE ? ev->time : 0;
-        bar->last_x = ev->x_root;
-        bar->last_y = ev->y_root;
-        /* the window manager grabs the pointer: give up the grab the press started */
-        XUngrabPointer(bar->dpy, ev->time);
-        cui__x11_tb_send(bar, ev->x_root, ev->y_root, dir, Button1, 1 /* source: application */);
+        return true;
     }
-    bar->handed_over = true;
+    /* the window manager gets the press only once it turns into a drag: a click, and the
+     * second click of a double click, stay with the app */
+    bar->last_click = ev->time;
+    bar->press_x = ev->x_root;
+    bar->press_y = ev->y_root;
+    bar->press = CUI__X11_PRESS_CAPTION;
     return true;
 }
 
-void cui__x11_title_bar_cursor(cui__x11_title_bar *bar, cui_app *app, const XMotionEvent *ev, float scale, int w, int h, Cursor app_cursor) {
+void cui__x11_title_bar_motion(cui__x11_title_bar *bar, cui_app *app, const XMotionEvent *ev, float scale, int w, int h, Cursor app_cursor) {
     if (!bar->dpy) return;
+    if (bar->press == CUI__X11_PRESS_CAPTION) {
+        if (!(ev->state & Button1Mask)) {
+            bar->press = CUI__X11_PRESS_NONE;   /* its release went elsewhere */
+        } else if (abs(ev->x_root - bar->press_x) > 4 * scale || abs(ev->y_root - bar->press_y) > 4 * scale) {
+            /* from the press: the window follows the pointer from where it was taken */
+            bar->last_click = 0;
+            cui__x11_tb_hand_over(bar, bar->press_x, bar->press_y, CUI__X11_MOVE, ev->time);
+            return;
+        }
+    }
     int dir = cui__x11_tb_edge(bar, app, ev->x, ev->y, scale, w, h);
     if (dir == CUI__X11_NO_EDGE) {
         if (bar->shown) XDefineCursor(bar->dpy, bar->win, app_cursor);

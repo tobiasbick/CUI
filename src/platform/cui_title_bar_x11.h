@@ -12,9 +12,12 @@ typedef struct {
     Window win, root;
     Atom move_resize, frame_extents, net_wm_state;
     bool resizable;
-    bool handed_over;          /* the last press went to the window manager: drop its release */
-    Time last_press;           /* the last press on the caption, for a double click */
-    int last_x, last_y;
+    enum { CUI__X11_PRESS_NONE, CUI__X11_PRESS_CAPTION, CUI__X11_PRESS_TAKEN } press;
+                               /* the button is down on the caption, where a drag moves the window,
+                                * or its release is the title bar's (a double click, or handed to
+                                * the window manager) */
+    int press_x, press_y;      /* where the last press on the caption was, on the root window */
+    Time last_click;           /* when it was, for a double click; 0 after anything else */
     Cursor cursors[8];         /* the sizing cursors along the edges, made when first shown */
     Cursor shown;              /* the sizing cursor shown now, None over the content */
 } cui__x11_title_bar;
@@ -27,7 +30,8 @@ void cui__x11_title_bar_release(cui__x11_title_bar *bar);
 void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEvent *ev);
 /* A press or release of a button. Returns true when the title bar took it from the app. */
 bool cui__x11_title_bar_button(cui__x11_title_bar *bar, cui_app *app, const XButtonEvent *ev, float scale, int w, int h);
-/* Shows a sizing cursor along the edges, and the app's cursor elsewhere. */
-void cui__x11_title_bar_cursor(cui__x11_title_bar *bar, cui_app *app, const XMotionEvent *ev, float scale, int w, int h, Cursor app_cursor);
+/* Pointer motion: a drag from the caption becomes a move by the window manager. Shows a
+ * sizing cursor along the edges, and the app's cursor elsewhere. */
+void cui__x11_title_bar_motion(cui__x11_title_bar *bar, cui_app *app, const XMotionEvent *ev, float scale, int w, int h, Cursor app_cursor);
 
 #endif

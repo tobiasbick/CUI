@@ -798,7 +798,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
         cui_request_redraw(ui);
         break;
     case MotionNotify:
-        cui__x11_title_bar_cursor(&x->title_bar, app, &ev->xmotion, s, x->width, x->height, x->cursors[x->current_cursor]);
+        cui__x11_title_bar_motion(&x->title_bar, app, &ev->xmotion, s, x->width, x->height, x->cursors[x->current_cursor]);
         cui_input_mouse_move(ui, ev->xmotion.x / s, ev->xmotion.y / s);
         break;
     case EnterNotify:
