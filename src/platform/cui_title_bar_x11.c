@@ -64,7 +64,8 @@ void cui__x11_title_bar_release(cui__x11_title_bar *bar) {
  * is not laid out yet: KWin maps the frame at 1 by 1 and sizes it afterwards. A reparenting
  * window manager can keep a shadow around the window, so its frame may be larger, but no
  * taller on top than on the other sides; XWayland reports frame extents even for a frame that
- * is only a shadow. */
+ * is only a shadow. A window manager that does not reparent reports a frame it draws in
+ * _NET_FRAME_EXTENTS; KWin under Wayland leaves the property out for a window without one. */
 static int cui__x11_tb_undecorated(const cui__x11_title_bar *bar) {
     Window root, parent, *children = NULL;
     unsigned int n;
@@ -80,7 +81,7 @@ static int cui__x11_tb_undecorated(const cui__x11_title_bar *bar) {
     }
     unsigned long count;
     unsigned long *extents = cui__x11_tb_property(bar->dpy, bar->win, bar->frame_extents, XA_CARDINAL, &count);
-    int undecorated = count == 4 ? !extents[0] && !extents[1] && !extents[2] && !extents[3] : -1;
+    int undecorated = count != 4 || (!extents[0] && !extents[1] && !extents[2] && !extents[3]);
     if (extents) XFree(extents);
     return undecorated;
 }
