@@ -91,8 +91,9 @@ void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEven
     bool mapped = ev->type == MapNotify;
     bool property = ev->type == PropertyNotify;
     if (mapped) bar->frame_known = false;
-    /* until the frame is laid out, each move or resize of it asks again */
-    bool placed = !bar->frame_known && (ev->type == ConfigureNotify || ev->type == ReparentNotify || ev->type == Expose);
+    /* until the frame is laid out, each move or resize of it asks again; a reparenting window
+     * manager may also put the window in its frame only after mapping it */
+    bool placed = ev->type == ReparentNotify || (!bar->frame_known && (ev->type == ConfigureNotify || ev->type == Expose));
     if (mapped || placed || (property && ev->xproperty.atom == bar->frame_extents)) {
         int undecorated = cui__x11_tb_undecorated(bar);
         bar->frame_known = undecorated >= 0;
