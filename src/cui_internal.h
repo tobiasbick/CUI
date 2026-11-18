@@ -651,6 +651,7 @@ struct cui_ctx {
         struct cui_grid_build *grid;
         void *carousel;
         void *status_bar;          /* its width budget */
+        void *title_bar;           /* the window's frame and whether it has window buttons */
         void *card_stack;
         void *kanban;
         void *dock;
@@ -659,6 +660,8 @@ struct cui_ctx {
         void *veil;                /* veils nest: each keeps the one around it */
         struct cui__skel_group *skeleton;   /* skeleton groups nest: each keeps the one around it */
     } building;
+    /* the latest cui_title_bar and its maximize button, for cui_title_bar_hit_test */
+    struct { cui_id bar, maximize; uint64_t frame; } title_bar;
     cui__text_fx_fn text_fx;       /* set while a node with a text effect paints */
     void *text_fx_data;
     int text_fx_base;              /* byte offset of the line being drawn */

@@ -60,6 +60,7 @@ def platform_block(emit):
     emit("#ifndef __OBJC__\n#error \"CUI on macOS: compile this file as Objective-C (-x objective-c -fobjc-arc), or define CUI_NO_APP\"\n#endif\n")
     emit_file("src/platform/cui_app_cocoa.m")
     emit("#else\n"); emit_file("src/platform/cui_app_x11.c")
+    emit_file("src/platform/cui_title_bar_x11.c")
     emit("#endif\n#endif /* CUI_NO_APP */\n")
 
 

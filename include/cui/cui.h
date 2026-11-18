@@ -274,6 +274,17 @@ CUI_API int cui_dropped_file_count(cui_ctx *ui);
 CUI_API const char *cui_dropped_file(cui_ctx *ui, int index);
 CUI_API bool cui_file_drag_active(cui_ctx *ui);   /* files are being dragged over the window */
 
+/* The state of a window that draws its own title bar with cui_title_bar, as a platform layer
+ * reports it through cui_platform_iface.window_frame. */
+typedef struct cui_window_frame {
+    bool maximized;
+    bool resizable;            /* false: no maximize button (a fixed-size window) */
+} cui_window_frame;
+/* The window buttons of cui_title_bar, as cui_platform_iface.window_button receives them. */
+typedef enum cui_window_button {
+    CUI_WINDOW_BUTTON_MINIMIZE, CUI_WINDOW_BUTTON_MAXIMIZE, CUI_WINDOW_BUTTON_RESTORE, CUI_WINDOW_BUTTON_CLOSE
+} cui_window_button;
+
 /* Platform services. The built-in backends set these. */
 typedef struct cui_platform_iface {
     void *user;
@@ -284,6 +295,13 @@ typedef struct cui_platform_iface {
     /* Optional: draws one emoji (UTF-8) into a px by px RGBA buffer (straight alpha), for
      * when no emoji font is loaded; the browser build uses the browser's emoji. */
     bool (*draw_emoji)(void *user, const char *utf8, int len, int px, unsigned char *rgba);
+    /* Optional, for a window without the system's title bar, whose content draws one with
+     * cui_title_bar: writes the window's state and returns true. Without the hook, or when it
+     * returns false, the system draws the title bar and cui_title_bar has no window buttons.
+     * The platform moves the window over what cui_title_bar_hit_test calls the caption. */
+    bool (*window_frame)(void *user, cui_window_frame *frame);
+    /* Optional: carries out a click on one of cui_title_bar's window buttons. */
+    void (*window_button)(void *user, cui_window_button button);
 } cui_platform_iface;
 CUI_API void cui_set_platform(cui_ctx *ui, const cui_platform_iface *platform);
 CUI_API cui_cursor cui_get_cursor(cui_ctx *ui);
@@ -3225,6 +3243,38 @@ CUI_API bool cui_status_bar_item_ex(cui_ctx *ui, const char *label, const cui_st
 typedef struct cui_status_progress_opts { int _; const char *label; bool indeterminate; float width; } cui_status_progress_opts;
 CUI_API void cui_status_bar_progress_ex(cui_ctx *ui, float value, const cui_status_progress_opts *opts);
 
+/* Title bar: the top row of a window that draws its own title bar (cui_app_desc.custom_title_bar),
+ * with an optional icon and title, then the app's controls, and the window buttons (minimize,
+ * maximize or restore, close) at the end. Its empty space and its title move the window, and a
+ * double click there maximizes or restores it, as on the system's title bar. The bar is 40 points
+ * high: give the controls in it CUI_SIZE_SM. Like the other bars it has no fill of its own and a
+ * hairline under it. The title and the window buttons dim while the window is in the background.
+ * Where the system draws the title bar (macOS, SDL2, GLFW, a window manager that keeps its own,
+ * an app without custom_title_bar) it is the same bar without window buttons, so one layout
+ * serves both.
+ *
+ *     cui_title_bar(ui, "title", .icon = CUI_ICON_NOTEBOOK, .title = "Notes") {
+ *         cui_search(ui, "find", query, sizeof query, .size = CUI_SIZE_SM, .width = CUI_PX(240));
+ *         cui_spacer(ui);
+ *         if (cui_icon_button(ui, CUI_ICON_SETTINGS, .size = CUI_SIZE_SM, .tooltip = "Settings")) ...
+ *     }
+ */
+typedef struct cui_title_bar_opts {
+    int _;
+    const char *icon;          /* before the title, in the accent color */
+    const char *title;         /* the app's or the document's name */
+    bool no_border;            /* no hairline under the bar */
+} cui_title_bar_opts;
+CUI_API void cui_title_bar_begin(cui_ctx *ui, const char *id, const cui_title_bar_opts *opts);
+CUI_API void cui_title_bar_end(cui_ctx *ui);
+/* For a platform layer: what the last frame's cui_title_bar has at x, y (window points).
+ * CUI_TITLE_BAR_CAPTION moves the window: the bar's empty space and its title.
+ * CUI_TITLE_BAR_MAXIMIZE is the maximize button, where Windows 11 offers its snap layouts.
+ * CUI_TITLE_BAR_NONE is everything else: the controls, a popup or a dialog over the bar, and
+ * any point while a control is being dragged. */
+typedef enum cui_title_bar_hit { CUI_TITLE_BAR_NONE = 0, CUI_TITLE_BAR_CAPTION, CUI_TITLE_BAR_MAXIMIZE } cui_title_bar_hit;
+CUI_API cui_title_bar_hit cui_title_bar_hit_test(cui_ctx *ui, float x, float y);
+
 /* Document tabs: editor style tabs. Clicking selects (*selected is
  * updated), the x or a middle click asks to close, dragging reorders, and
  * the strip scrolls sideways when the tabs do not fit. A dirty tab shows a
@@ -5239,6 +5289,7 @@ CUI_API const cui_draw_data *cui_get_draw_data(cui_ctx *ui);
 #define cui_toolbar_radio(ui, id, icons, n, index, ...) cui_toolbar_radio_ex((ui), (id), (icons), (n), (index), CUI__OPTS(cui_toolbar_radio_opts, __VA_ARGS__))
 #define cui_toolbar_primary(ui, icon, ...)  cui_toolbar_primary_ex((ui), (icon), CUI__OPTS(cui_tool_opts, __VA_ARGS__))
 #define cui_toolbar_cycle(ui, id, items, n, index, ...) cui_toolbar_cycle_ex((ui), (id), (items), (n), (index), CUI__OPTS(cui_tool_opts, __VA_ARGS__))
+#define cui_title_bar(ui, id, ...)          CUI__SCOPE(cui_title_bar_begin((ui), (id), CUI__OPTS(cui_title_bar_opts, __VA_ARGS__)), cui_title_bar_end(ui))
 #define cui_status_bar(ui, id, ...)         CUI__SCOPE(cui_status_bar_begin((ui), (id), CUI__OPTS(cui_status_bar_opts, __VA_ARGS__)), cui_status_bar_end(ui))
 #define cui_status_bar_text(ui, text, ...)  cui_status_bar_text_ex((ui), (text), CUI__OPTS(cui_status_item_opts, __VA_ARGS__))
 #define cui_status_bar_item(ui, label, ...) cui_status_bar_item_ex((ui), (label), CUI__OPTS(cui_status_item_opts, __VA_ARGS__))

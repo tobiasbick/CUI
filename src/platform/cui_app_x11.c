@@ -14,6 +14,7 @@
 #include <sys/select.h>
 #include <time.h>
 #include <unistd.h>
+#include "cui_title_bar_x11.h"
 
 typedef struct __GLXFBConfigRec *GLXFBConfig_;
 typedef struct __GLXcontextRec *GLXContext_;
@@ -86,6 +87,7 @@ typedef struct {
     char *clip_owned;
     char *clip_read;
     bool mapped;
+    cui__x11_title_bar title_bar;   /* desc.custom_title_bar */
     /* X11 keeps no normal size and place for a maximized window: noted while it is normal */
     int normal_x, normal_y, normal_w, normal_h;   /* content origin on the root window, size in pixels */
     bool normal_pos_known;
@@ -269,6 +271,10 @@ bool cui__plat_init(cui_app *app) {
     x->win = XCreateWindow(x->dpy, root, x->normal_x, x->normal_y, (unsigned)x->width, (unsigned)x->height, 0, x->depth, InputOutput,
                            x->visual, CWColormap | CWBorderPixel | CWBackPixel | CWEventMask, &swa);
     if (!x->win) { XCloseDisplay(x->dpy); free(x); app->plat = NULL; return false; }
+    if (app->desc.custom_title_bar && cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) {
+        x->event_mask |= PropertyChangeMask;   /* the frame extents and the state tell when it took effect */
+        XSelectInput(x->dpy, x->win, x->event_mask);
+    }
     x->wm_protocols = XInternAtom(x->dpy, "WM_PROTOCOLS", False);
     x->wm_delete = XInternAtom(x->dpy, "WM_DELETE_WINDOW", False);
     x->net_wm_name = XInternAtom(x->dpy, "_NET_WM_NAME", False);
@@ -358,6 +364,8 @@ bool cui__plat_init(cui_app *app) {
     pi.set_clipboard = cui__x11_set_clip;
     pi.set_cursor = cui__x11_set_cursor;
     pi.set_text_input_rect = cui__x11_text_input_rect;
+    pi.window_frame = cui__app_window_frame;
+    pi.window_button = cui__app_window_button;
     cui_set_platform(app->ui, &pi);
     return true;
 }
@@ -397,6 +405,7 @@ void cui__plat_shutdown(cui_app *app) {
     if (x->ic) XDestroyIC(x->ic);
     if (x->im) XCloseIM(x->im);
     if (x->ic_fontset) XFreeFontSet(x->dpy, x->ic_fontset);
+    cui__x11_title_bar_release(&x->title_bar);
     for (int i = 0; i < CUI_CURSOR_COUNT; i++) if (x->cursors[i]) XFreeCursor(x->dpy, x->cursors[i]);
     if (x->gc) XFreeGC(x->dpy, x->gc);
     XDestroyWindow(x->dpy, x->win);
@@ -519,6 +528,7 @@ static void cui__x11_set_cursor(void *user, cui_cursor c) {
     cui__x11 *x = cui__x(app);
     if (c == x->current_cursor || (int)c < 0 || c >= CUI_CURSOR_COUNT) return;
     x->current_cursor = c;
+    if (x->title_bar.shown) return;   /* a sizing cursor along the edge; the app's comes back off it */
     XDefineCursor(x->dpy, x->win, x->cursors[c]);
     XFlush(x->dpy);
 }
@@ -764,6 +774,10 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
     if (XFilterEvent(ev, None)) return;
     float s = x->scale;
     switch (ev->type) {
+    case MapNotify:
+    case PropertyNotify:
+        cui__x11_title_bar_event(&x->title_bar, app, ev);
+        break;
     case ClientMessage:
         if (cui__x11_xdnd_message(app, &ev->xclient)) break;
         if ((Atom)ev->xclient.data.l[0] == x->wm_delete) app->running = false;
@@ -784,6 +798,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
         cui_request_redraw(ui);
         break;
     case MotionNotify:
+        cui__x11_title_bar_cursor(&x->title_bar, app, &ev->xmotion, s, x->width, x->height, x->cursors[x->current_cursor]);
         cui_input_mouse_move(ui, ev->xmotion.x / s, ev->xmotion.y / s);
         break;
     case EnterNotify:
@@ -794,6 +809,7 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
         break;
     case ButtonPress:
     case ButtonRelease: {
+        if (cui__x11_title_bar_button(&x->title_bar, app, &ev->xbutton, s, x->width, x->height)) break;
         bool down = ev->type == ButtonPress;
         unsigned int b = ev->xbutton.button;
         cui_input_mouse_move(ui, ev->xbutton.x / s, ev->xbutton.y / s);
