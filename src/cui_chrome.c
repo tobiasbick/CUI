@@ -965,6 +965,7 @@ void cui_status_bar_progress_ex(cui_ctx *ui, float value, const cui_status_progr
 #define CUI__WINDOW_BUTTON_W 46.0f   /* as wide as the system's own on Windows */
 
 typedef struct { cui_window_frame frame; bool buttons, dim; } cui__title_bar_build;
+#define CUI__TITLE_BARS (int)(sizeof ((cui_ctx *)0)->title_bar.bars / sizeof (cui_id))
 typedef struct { cui_window_button kind; cui_color c; } cui__window_glyph;
 
 /* A whole number of device pixels, so the glyph's lines stay sharp. */
@@ -1035,14 +1036,19 @@ void cui_title_bar_begin(cui_ctx *ui, const char *id_str, const cui_title_bar_op
     if (!o) o = &d;
     cui__title_bar_build *b = cui__frame_alloc(ui, sizeof *b);
     memset(b, 0, sizeof *b);
-    b->buttons = ui->platform.window_frame && ui->platform.window_frame(ui->platform.user, &b->frame);
-    b->dim = b->buttons && !ui->window_focused;
+    bool custom = ui->platform.window_frame && ui->platform.window_frame(ui->platform.user, &b->frame);
+    b->buttons = custom && !o->no_window_buttons;
+    b->dim = custom && !ui->window_focused;
     ui->building.title_bar = b;
 
+    /* each segment of the frame moves the window; the first one starts the frame's list */
     cui_id id = cui_make_id(ui, id_str);
-    ui->title_bar.bar = id;
-    ui->title_bar.maximize = 0;
-    ui->title_bar.frame = ui->frame;
+    if (ui->title_bar.frame != ui->frame) {
+        ui->title_bar.count = 0;
+        ui->title_bar.maximize = 0;
+        ui->title_bar.frame = ui->frame;
+    }
+    if (ui->title_bar.count < CUI__TITLE_BARS) ui->title_bar.bars[ui->title_bar.count++] = id;
     int bar = cui__bar_row(ui, id, 0, 0, !o->no_border, false);
     ui->nodes[bar].h = CUI_PX(CUI__TITLE_BAR_H);
     ui->nodes[bar].gap = 0;
@@ -1094,8 +1100,11 @@ cui_title_bar_hit cui_title_bar_hit_test(cui_ctx *ui, float x, float y) {
     const cui_hit *hits = ui->in_frame ? ui->prev_hits : ui->hits;
     int count = ui->in_frame ? ui->prev_hit_count : ui->hit_count;
     uint64_t last = ui->in_frame ? ui->frame - 1 : ui->frame;
-    if (!ui->title_bar.bar || ui->title_bar.frame < last || ui->active) return CUI_TITLE_BAR_NONE;
-    if (!cui__rect_contains(cui__prev_rect(ui, ui->title_bar.bar), x, y)) return CUI_TITLE_BAR_NONE;
+    if (ui->title_bar.frame < last || ui->active) return CUI_TITLE_BAR_NONE;
+    bool on_bar = false;
+    for (int i = 0; i < ui->title_bar.count && !on_bar; i++)
+        on_bar = cui__rect_contains(cui__prev_rect(ui, ui->title_bar.bars[i]), x, y);
+    if (!on_bar) return CUI_TITLE_BAR_NONE;
     for (int i = count - 1; i >= 0; i--) {
         const cui_hit *h = &hits[i];
         if (!(h->flags & (CUI_NF_INTERACTIVE | CUI_NF_BLOCKER | CUI_NF_HIT_OPAQUE)) || !cui__rect_contains(h->rect, x, y)) continue;

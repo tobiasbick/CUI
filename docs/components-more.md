@@ -2173,7 +2173,28 @@ cui_title_bar(ui, "title", .icon = CUI_ICON_NOTEBOOK, .title = "Notes") {
 
 The bar is 40 points high, so the controls in it take `CUI_SIZE_SM`. The icon (in the accent color) and the title come first, then your controls; `cui_spacer` pushes the ones after it to the end. The window buttons follow at the right edge: minimize, maximize (restore while maximized; none for a `fixed_size` window) and close, which turns red under the pointer. They are not in the Tab order, as on the system's title bar. The bar's empty space and its title move the window, and a double click there maximizes and restores it; the window keeps its border, its shadow and its resizing. On Windows 11, resting the pointer on the maximize button opens the snap layouts. The title and the window buttons dim while the window is in the background.
 
-With `cui_app_desc.custom_title_bar` the system's title bar goes on Windows, and on Linux under an X11 window manager that supports EWMH and drops its decorations on request. Elsewhere (macOS, SDL2, GLFW, Wayland, or without `custom_title_bar`) the system keeps its title bar and `cui_title_bar` is the same bar without the window buttons, so one layout serves both. A platform layer of your own reports the window through the optional `window_frame` and `window_button` hooks of `cui_platform_iface` and asks `cui_title_bar_hit_test` which points move the window.
+A sidebar can reach up into the title bar, as in editors and chat apps. Give the sidebar its own segment with `.no_window_buttons` at its top, and put the main bar at the top of the content beside it. Each segment takes the fill of its column, and the empty space of either one moves the window; up to four segments make up one frame's title bar. A `cui_separator` between the columns runs through the title bar as well. When the sidebar closes, move its buttons into the main bar:
+
+```c
+cui_row(ui, .width = CUI_FILL, .height = CUI_FILL) {
+    if (sidebar_open) {
+        cui_column(ui, .width = CUI_PX(220), .height = CUI_FILL, .bg = CUI_COLOR_SURFACE_MUTED) {
+            cui_title_bar(ui, "side", .title = "Notes", .no_window_buttons = true, .no_border = true) {
+                cui_spacer(ui);
+                if (cui_icon_button(ui, CUI_ICON_PANEL_LEFT, .size = CUI_SIZE_SM, .tooltip = "Hide sidebar")) sidebar_open = false;
+            }
+            /* ... the sidebar's items ... */
+        }
+        cui_separator(ui);
+    }
+    cui_column(ui, .width = CUI_FILL, .height = CUI_FILL) {
+        cui_title_bar(ui, "title") { /* ... the show-sidebar button while it is closed, then the app's controls ... */ }
+        /* ... the content ... */
+    }
+}
+```
+
+With `cui_app_desc.custom_title_bar` the system's title bar goes on Windows, and on Linux under an X11 window manager that supports EWMH and drops its decorations on request, also through XWayland under KDE Plasma. Elsewhere (macOS, SDL2, GLFW, or without `custom_title_bar`) the system keeps its title bar and `cui_title_bar` is the same bar without the window buttons, so one layout serves both. A platform layer of your own reports the window through the optional `window_frame` and `window_button` hooks of `cui_platform_iface` and asks `cui_title_bar_hit_test` which points move the window.
 
 ### Menu bar
 

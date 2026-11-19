@@ -3253,6 +3253,10 @@ CUI_API void cui_status_bar_progress_ex(cui_ctx *ui, float value, const cui_stat
  * an app without custom_title_bar) it is the same bar without window buttons, so one layout
  * serves both.
  *
+ * A sidebar can reach up into the title bar: put a segment with .no_window_buttons at the top of
+ * the sidebar and the main one at the top of the content beside it. Each segment takes the fill
+ * of its column and moves the window; up to four make up the title bar of one frame.
+ *
  *     cui_title_bar(ui, "title", .icon = CUI_ICON_NOTEBOOK, .title = "Notes") {
  *         cui_search(ui, "find", query, sizeof query, .size = CUI_SIZE_SM, .width = CUI_PX(240));
  *         cui_spacer(ui);
@@ -3264,6 +3268,7 @@ typedef struct cui_title_bar_opts {
     const char *icon;          /* before the title, in the accent color */
     const char *title;         /* the app's or the document's name */
     bool no_border;            /* no hairline under the bar */
+    bool no_window_buttons;    /* a segment over a sidebar: the window buttons are in another one */
 } cui_title_bar_opts;
 CUI_API void cui_title_bar_begin(cui_ctx *ui, const char *id, const cui_title_bar_opts *opts);
 CUI_API void cui_title_bar_end(cui_ctx *ui);
