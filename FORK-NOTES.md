@@ -40,16 +40,25 @@ Before a proposal, split it into the title bar and the two general fixes below.
   for under 50 ms.
 - KDE KWin 6.7 Wayland through XWayland, both renderers: 40/40 launches with
   window buttons and the hairline, and `--system-frame` without flashes.
-  CTest 26/26.
+  CTest 26/26. Input at display scale 1.3 (OpenGL): double click in both
+  segments maximizes and restores, Minimize, Maximize, Restore and Close work,
+  Close turns red on hover, and the edges show the sizing cursors.
 
 ## Open problems
 
-- **Wayland input untested.** Under KWin Wayland, dragging, double click, the
-  window buttons, edge resizing and hover have not been tried, because
-  synthetic `xdotool` input does not reach KWin. Test them by hand.
-- **`3e08e5f` untested.** It re-checks the frame on every `ReparentNotify`,
-  for window managers that map a window before reparenting it. The change is
-  small, but it has been neither compiled nor run.
+- **Moving and resizing under Wayland untested.** The app sends
+  `_NET_WM_MOVERESIZE` after the drag threshold, but KWin Wayland ignores
+  interactive moves from emulated input; it does not move a `--system-frame`
+  window by its own title bar either. Drag the bar and the edges by hand.
+  The gallery's divider and its title bar switch have not been run there.
+- **A lost Close click under Wayland, seen once.** After minimizing, and
+  activating the window again through client messages, the first click on
+  Close did nothing and the second closed it. It may be KWin's activation
+  click rather than CUI. Not reproduced.
+- **`3e08e5f` not exercised.** It re-checks the frame on every
+  `ReparentNotify`, for window managers that map a window before reparenting
+  it. Every later KWin build ran it, but no window manager that reparents
+  late has been tried.
 - **SDL2 ignores fractional scaling on native Wayland.** At a display scale of
   1.3 the window comes out at scale 1, so the interface is about 23% too
   small, though sharp. GLFW scales correctly. The SDL2 backend probably needs
