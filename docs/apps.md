@@ -90,6 +90,13 @@ A placement holds the size and place the window has when it is neither maximized
 
 With `.custom_title_bar = true` the system's title bar goes and the app draws one with [`cui_title_bar`](components-more.md#title-bar), with its own controls next to the window buttons. The window keeps its border, shadow and resizing, and the bar's empty space moves it. This works on Windows and on Linux under X11 window managers that support EWMH; on X11 the window manager drops its decorations once the window is shown, so the window buttons appear from that frame on. Everywhere else the system keeps its title bar and `cui_title_bar` is an ordinary bar without window buttons. Run the [title bar example](../examples/titlebar.c), with `--system-frame` to compare.
 
+`cui_app_set_custom_title_bar(NULL, on)` turns it on or off while the window is open, for a setting in the app; the content keeps its size and place, and the window grows or shrinks by the system's caption. `cui_app_custom_title_bar(NULL)` says whether the app's own title bar is in effect. The gallery's Window page has the switch, beside the window's state and the calls that change it.
+
+```c
+static bool own = true;
+if (cui_switch(ui, "Draw the title bar in the app", &own)) cui_app_set_custom_title_bar(NULL, own);
+```
+
 `cui_app_native_window` returns the system's handle (an `HWND`, an `NSWindow *`, an X11 `Window`, an `SDL_Window *` or a `GLFWwindow *`) for the things CUI does not wrap, such as a window icon or a system tray entry. `cui_app_backend` names the backend in use.
 
 File dialogs, opening links and screenshots are in [Getting started](getting-started.md#7-files-and-links).

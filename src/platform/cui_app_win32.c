@@ -722,6 +722,25 @@ void cui__plat_set_size(cui_app *app, int width, int height) {
     SetWindowPos(w->hwnd, NULL, 0, 0, fw, fh, SWP_NOMOVE | SWP_NOZORDER);
 }
 
+void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
+    cui__win32 *w = cui__w(app);
+    if (app->title_bar == on) return;
+    /* the content stays where it is: the window grows or shrinks by the caption */
+    RECT outer, before = cui__win32_frame(app, w->hwnd);
+    GetWindowRect(w->hwnd, &outer);
+    app->title_bar = on;
+    app->title_bar_maximized = IsZoomed(w->hwnd) != 0;
+    RECT after = cui__win32_frame(app, w->hwnd);
+    UINT flags = SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE;
+    if (IsZoomed(w->hwnd) || IsIconic(w->hwnd)) {
+        SetWindowPos(w->hwnd, NULL, 0, 0, 0, 0, flags | SWP_NOMOVE | SWP_NOSIZE);
+        return;
+    }
+    int x = outer.left - before.left + after.left, y = outer.top - before.top + after.top;
+    int cw = (outer.right - outer.left) - (before.right - before.left), ch = (outer.bottom - outer.top) - (before.bottom - before.top);
+    SetWindowPos(w->hwnd, NULL, x, y, cw + (after.right - after.left), ch + (after.bottom - after.top), flags);
+}
+
 void *cui__plat_native(cui_app *app) { return cui__w(app)->hwnd; }
 
 void cui__plat_wait(cui_app *app, double timeout) {

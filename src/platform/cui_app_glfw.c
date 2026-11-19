@@ -333,6 +333,9 @@ void cui__plat_restore(cui_app *app) {
     glfwRestoreWindow(g->win);
 }
 
+/* The system draws the title bar here: a title bar of the app's own is not available. */
+void cui__plat_set_custom_title_bar(cui_app *app, bool on) { (void)app; (void)on; }
+
 cui_window_state cui__plat_window_state(cui_app *app) {
     GLFWwindow *win = cui__g(app)->win;
     return glfwGetWindowAttrib(win, GLFW_ICONIFIED) ? CUI_WINDOW_MINIMIZED

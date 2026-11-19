@@ -75,6 +75,9 @@ void cui__plat_maximize(cui_app *app);
 void cui__plat_minimize(cui_app *app);
 void cui__plat_restore(cui_app *app);
 cui_window_state cui__plat_window_state(cui_app *app);
+/* desc.custom_title_bar changed while the window is open: drop or bring back the system's title
+ * bar, keeping the content's size and place. A backend without the feature does nothing. */
+void cui__plat_set_custom_title_bar(cui_app *app, bool on);
 void cui__plat_set_position(cui_app *app, int x, int y);
 /* Fills in the normal size and place, and the state: maximized also for a minimized window that
  * comes back maximized. desc.placement, when set, has already set desc.width and desc.height;

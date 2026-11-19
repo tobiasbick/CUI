@@ -2002,6 +2002,66 @@ static void page_voice(cui_ctx *ui) {
     }
 }
 
+/* ---- window --------------------------------------------------------------- */
+
+static const gallery_window *window_api;
+void gallery_more_set_window(const gallery_window *window) { window_api = window; }
+
+static void page_window(cui_ctx *ui) {
+    const gallery_window *w = window_api;
+    if (!w) {
+        cui_secondary(ui, "The window controls need a window of the gallery's own: run the gallery app.");
+        return;
+    }
+    static bool want = true;   /* the gallery app opens with its own title bar */
+    section(ui, "Title bar", "Drawn by the app, the title bar is a cui_title_bar in each column: the sidebar reaches up into it "
+                             "and the window buttons are CUI's. Turned off, the system's title bar comes back and the same bars "
+                             "stay, without window buttons.");
+    cui_card(ui, .pad = 16, .gap = 12, .width = CUI_FILL) {
+        cui_row(ui, .gap = 12, .width = CUI_FILL) {
+            if (cui_switch(ui, "Draw the title bar in the app", &want)) w->set_title_bar(want);
+            cui_spacer(ui);
+            bool active = w->title_bar();
+            if (active) cui_status_tag(ui, "In effect", CUI_TAG_SUCCESS);
+            else if (want) cui_status_tag(ui, "Not available here", CUI_TAG_CUSTOM, .icon = CUI_ICON_MONITOR, .tone = CUI_TONE_WARNING);
+            else cui_status_tag(ui, "System title bar", CUI_TAG_CUSTOM, .icon = CUI_ICON_MONITOR);
+        }
+    }
+
+    static const char *const states[] = { "Normal", "Maximized", "Minimized" };
+    static cui_window_placement saved;
+    static bool has_saved;
+    cui_window_state state = w->state();
+    cui_window_placement p;
+    memset(&p, 0, sizeof p);
+    w->placement(&p);
+    cui_vec2 now = cui_viewport_size(ui);
+    char pos[32], normal[32], size[32];
+    if (p.has_position) snprintf(pos, sizeof pos, "%d, %d", p.x, p.y);
+    else snprintf(pos, sizeof pos, "unknown");
+    snprintf(normal, sizeof normal, "%d x %d", p.width, p.height);
+    snprintf(size, sizeof size, "%.0f x %.0f", now.x, now.y);
+    section(ui, "Window state", "What the system reports about the window, every frame. Resize or move the window to see it follow.");
+    cui_card(ui, .pad = 16, .gap = 16, .width = CUI_FILL) {
+        cui_row(ui, .gap = 32, .wrap = true, .align = CUI_ALIGN_START) {
+            cui_readout(ui, "STATE", states[state], .size = CUI_SIZE_SM, .accent = state == CUI_WINDOW_MAXIMIZED);
+            cui_readout(ui, "POSITION", pos, .size = CUI_SIZE_SM, .detail = "the content's corner, desktop pixels");
+            cui_readout(ui, "NORMAL SIZE", normal, .size = CUI_SIZE_SM, .unit = "PT", .detail = "restored, also while maximized");
+            cui_readout(ui, "SIZE NOW", size, .size = CUI_SIZE_SM, .unit = "PT");
+        }
+        cui_separator(ui);
+        cui_row(ui, .gap = 8, .wrap = true) {
+            if (cui_button(ui, "Maximize", .icon = CUI_ICON_MAXIMIZE_2, .disabled = state == CUI_WINDOW_MAXIMIZED)) w->maximize();
+            if (cui_button(ui, "Restore", .icon = CUI_ICON_MINIMIZE_2, .disabled = state == CUI_WINDOW_NORMAL)) w->restore();
+            if (cui_button(ui, "Minimize", .icon = CUI_ICON_MINUS)) w->minimize();
+            cui_spacer(ui);
+            if (cui_button(ui, "Remember this place", .icon = CUI_ICON_MAP_PIN, .disabled = !p.has_position)) { saved = p; has_saved = true; }
+            if (cui_button(ui, "Go back there", .icon = CUI_ICON_UNDO_2, .disabled = !has_saved || state != CUI_WINDOW_NORMAL))
+                w->set_position(saved.x, saved.y);
+        }
+    }
+}
+
 /* ---- registry ------------------------------------------------------------ */
 
 typedef struct { const char *name, *icon; void (*fn)(cui_ctx *ui); } more_page;
@@ -2028,6 +2088,7 @@ static const more_page pages[] = {
     { "Creative controls", CUI_ICON_PALETTE, page_creative },
     { "Canvas and bars", CUI_ICON_LAYERS, page_canvas },
     { "Voice", CUI_ICON_MIC, page_voice },
+    { "Window", CUI_ICON_MONITOR, page_window },
 };
 
 int gallery_more_count(void) { return (int)(sizeof pages / sizeof pages[0]); }

@@ -139,6 +139,13 @@ CUI_API void cui_app_set_position(cui_app *app, int x, int y);
  * out, also while it is maximized or minimized, so an app can save them when it closes.
  * Returns false when there is no app. */
 CUI_API bool cui_app_placement(cui_app *app, cui_window_placement *out);
+/* Turns the app's own title bar (cui_app_desc.custom_title_bar) on or off while the window is
+ * open, for a setting in the app. The content keeps its size and place, and cui_title_bar gains or
+ * loses its window buttons. Where the system cannot drop its title bar nothing changes. */
+CUI_API void cui_app_set_custom_title_bar(cui_app *app, bool on);
+/* True while the app draws the title bar. On X11 that starts once the window manager has dropped
+ * its decorations, a frame or two after asking. */
+CUI_API bool cui_app_custom_title_bar(cui_app *app);
 /* Starts or stops following the OS light/dark setting, as cui_app_desc.follow_system_theme
  * does at creation, for a theme switcher with Light, Dark and System. Starting applies the
  * OS setting at once, where the platform reports one. Stopping keeps the current theme, so

@@ -58,6 +58,15 @@ bool cui__x11_title_bar_request(cui__x11_title_bar *bar, Display *dpy, Window wi
 void cui__x11_title_bar_release(cui__x11_title_bar *bar) {
     if (!bar->dpy) return;
     for (int i = 0; i < 8; i++) if (bar->cursors[i]) XFreeCursor(bar->dpy, bar->cursors[i]);
+    memset(bar->cursors, 0, sizeof bar->cursors);
+}
+
+void cui__x11_title_bar_drop(cui__x11_title_bar *bar, cui_app *app) {
+    if (!bar->dpy) return;
+    XDeleteProperty(bar->dpy, bar->win, XInternAtom(bar->dpy, "_MOTIF_WM_HINTS", False));
+    XFlush(bar->dpy);
+    bar->off = true;
+    app->title_bar = app->title_bar_edge = false;
 }
 
 /* 1 when the window manager took the decorations away, 0 when it kept them, -1 while its frame
@@ -87,7 +96,7 @@ static int cui__x11_tb_undecorated(const cui__x11_title_bar *bar) {
 }
 
 void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEvent *ev) {
-    if (!bar->dpy) return;
+    if (!bar->dpy || bar->off) return;
     bool mapped = ev->type == MapNotify;
     bool property = ev->type == PropertyNotify;
     if (mapped) bar->frame_known = false;

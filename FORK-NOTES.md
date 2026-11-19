@@ -7,7 +7,10 @@ Before a proposal, split it into the title bar and the two general fixes below.
 
 - **Title bar**: `cui_title_bar` and `cui_app_desc.custom_title_bar` on Win32
   and X11, including XWayland. A sidebar can reach up into the title bar
-  with a segment of its own (`.no_window_buttons`). Platform layers use
+  with a segment of its own (`.no_window_buttons`), and
+  `cui_app_set_custom_title_bar` switches it at run time. The gallery draws its
+  own title bar, and its Window page switches it and shows and changes the
+  window's state. Platform layers use
   `cui_platform_iface.window_frame` and `.window_button` together with
   `cui_title_bar_hit_test`.
 - **X11 OpenGL idle** (`6ddb1ef`): an idle window presented continuously,
@@ -23,7 +26,9 @@ Before a proposal, split it into the title bar and the two general fixes below.
   double click, edge resizing, dark mode, the inactive look, `--system-frame`,
   `--fixed-size`, the hover fade and idle CPU. All CTest tests pass. The split
   title bar (sidebar segment): dragging and double click in both segments,
-  and hiding and showing the sidebar.
+  and hiding and showing the sidebar. The gallery's title bar and Window page:
+  switching the title bar off and on keeps the content in place, and the
+  Maximize and Restore buttons work.
 - Debian, KDE KWin 6.7 X11, both renderers: the same interactions, a
   120-launch startup check, the edge hairline and idle CPU. CTest 26/26.
 - KDE KWin 6.7 Wayland through XWayland, both renderers: 40/40 launches with
@@ -32,8 +37,11 @@ Before a proposal, split it into the title bar and the two general fixes below.
 
 ## Open problems
 
-- **Split title bar on Linux untested.** The sidebar segment works through the
-  same hit test on every backend, but it has only been tried on Windows.
+- **Split title bar and run-time switch on Linux untested.** The sidebar
+  segment works through the same hit test on every backend, but it has only
+  been tried on Windows. On X11, `cui_app_set_custom_title_bar` deletes or
+  sets the Motif hint while the window is mapped and relies on the window
+  manager redecorating it; it has been neither compiled nor run there.
 - **Wayland input untested.** Under KWin Wayland, dragging, double click, the
   window buttons, edge resizing and hover have not been tried, because
   synthetic `xdotool` input does not reach KWin. Test them by hand.

@@ -67,56 +67,66 @@ static void paint_swatch(cui_ctx *ui, cui_rect r, void *user) {
     cui_draw_circle(ui, c, r.w / 2 - 4, d->color);
 }
 
+/* The panel button that hides and shows the page list: in the list's title bar segment while it
+ * is open, in the main title bar while it is not. */
+static void sidebar_button(cui_ctx *ui, gallery *g) {
+    if (cui_icon_button(ui, CUI_ICON_PANEL_LEFT, .size = CUI_SIZE_SM, .tooltip = g->sidebar_hidden ? "Show the pages" : "Hide the pages"))
+        g->sidebar_hidden = !g->sidebar_hidden;
+}
+
 static void sidebar(cui_ctx *ui, gallery *g, bool drawer) {
-    cui_column(ui, .width = drawer ? CUI_FILL : CUI_PX(240), .height = CUI_FILL, .bg = drawer ? CUI_TRANSPARENT : CUI_COLOR_SURFACE_MUTED,
-               .pad = drawer ? 0 : 12, .gap = 2) {
-        if (!drawer) cui_row(ui, .gap = 10, .pad_x = 8, .pad_top = 6, .pad_bottom = 18) {
-            cui_box(ui, .width = CUI_PX(28), .height = CUI_PX(28), .radius = 9, .bg = CUI_COLOR_FOREGROUND,
+    cui_column(ui, .width = drawer ? CUI_FILL : CUI_PX(240), .height = CUI_FILL, .bg = drawer ? CUI_TRANSPARENT : CUI_COLOR_SURFACE_MUTED) {
+        /* the page list reaches up into the title bar with a segment of its own */
+        if (!drawer) cui_title_bar(ui, "pages", .no_window_buttons = true, .no_border = true) {
+            cui_box(ui, .width = CUI_PX(24), .height = CUI_PX(24), .radius = 8, .bg = CUI_COLOR_FOREGROUND,
                     .dir = CUI_STACK, .align = CUI_ALIGN_CENTER, .justify = CUI_JUSTIFY_CENTER) {
-                cui_text(ui, "C", .font = CUI_FONT_DISPLAY, .size = 16, .color = CUI_COLOR_BACKGROUND, .line_height = 1.0f);
+                cui_text(ui, "C", .font = CUI_FONT_DISPLAY, .size = 14, .color = CUI_COLOR_BACKGROUND, .line_height = 1.0f);
             }
             cui_text(ui, "CUI", .font = CUI_FONT_MEDIUM, .size = 15, .nowrap = true);
-            cui_spacer(ui);
             char ver[16];
             snprintf(ver, sizeof ver, "v%d.%d", CUI_VERSION_MAJOR, CUI_VERSION_MINOR);
             cui_badge(ui, ver, .size = CUI_SIZE_SM);
+            cui_spacer(ui);
+            sidebar_button(ui, g);
         }
-        cui_scroll(ui, .id = "nav", .height = CUI_FILL, .gap = 2) {
-            cui_nav_section(ui, "Components");
-            for (int i = 0; i < PAGE_COUNT; i++) {
-                if (cui_nav_item(ui, page_names[i], .icon = page_icons[i], .selected = g->page == i, .group = "pages")) {
-                    g->page = i;
-                    g->drawer = false;
-                    cui_scroll_to(ui, "main", 0);
+        cui_column(ui, .width = CUI_FILL, .height = CUI_FILL, .pad = drawer ? 0 : 12, .pad_top = drawer ? 0 : 8, .gap = 2) {
+            cui_scroll(ui, .id = "nav", .height = CUI_FILL, .gap = 2) {
+                cui_nav_section(ui, "Components");
+                for (int i = 0; i < PAGE_COUNT; i++) {
+                    if (cui_nav_item(ui, page_names[i], .icon = page_icons[i], .selected = g->page == i, .group = "pages")) {
+                        g->page = i;
+                        g->drawer = false;
+                        cui_scroll_to(ui, "main", 0);
+                    }
+                }
+                cui_gap(ui, 10);
+                cui_nav_section(ui, "Extended");
+                for (int i = 0; i < gallery_more_count(); i++) {
+                    if (cui_nav_item(ui, gallery_more_name(i), .icon = gallery_more_icon(i), .selected = g->page == PAGE_COUNT + i, .group = "pages")) {
+                        g->page = PAGE_COUNT + i;
+                        g->drawer = false;
+                        cui_scroll_to(ui, "main", 0);
+                    }
                 }
             }
-            cui_gap(ui, 10);
-            cui_nav_section(ui, "Extended");
-            for (int i = 0; i < gallery_more_count(); i++) {
-                if (cui_nav_item(ui, gallery_more_name(i), .icon = gallery_more_icon(i), .selected = g->page == PAGE_COUNT + i, .group = "pages")) {
-                    g->page = PAGE_COUNT + i;
-                    g->drawer = false;
-                    cui_scroll_to(ui, "main", 0);
+            cui_column(ui, .gap = 12, .pad = 8) {
+                const char *modes[2] = { "Light", "Dark" };
+                const char *mode_icons[2] = { CUI_ICON_SUN, CUI_ICON_MOON };
+                int mode = g->dark ? 1 : 0;
+                if (cui_segmented(ui, "theme", modes, 2, &mode, .full_width = true, .icons = mode_icons, .size = CUI_SIZE_SM)) {
+                    g->dark = mode == 1;
+                    cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT);
                 }
-            }
-        }
-        cui_column(ui, .gap = 12, .pad = 8) {
-            const char *modes[2] = { "Light", "Dark" };
-            const char *mode_icons[2] = { CUI_ICON_SUN, CUI_ICON_MOON };
-            int mode = g->dark ? 1 : 0;
-            if (cui_segmented(ui, "theme", modes, 2, &mode, .full_width = true, .icons = mode_icons, .size = CUI_SIZE_SM)) {
-                g->dark = mode == 1;
-                cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT);
-            }
-            cui_row(ui, .justify = CUI_JUSTIFY_BETWEEN) {
-                for (int a = 0; a < CUI_ACCENT_COUNT; a++) {
-                    static const unsigned hex[CUI_ACCENT_COUNT] = { 0x555555, 0x7747ff, 0x0562ef, 0x00864b, 0xf3ad20, 0xc25300, 0xd1403a, 0xd23286 };
-                    swatch_data d = { CUI_RGB(hex[a]), g->accent == a };
-                    char id[32];
-                    snprintf(id, sizeof id, "accent-%d", a);
-                    cui_canvas_result r = cui_canvas(ui, id, CUI_PX(22), CUI_PX(22), paint_swatch, &d, sizeof d);
-                    cui_tooltip(ui, cui_accent_name((cui_accent)a));
-                    if (r.clicked) { g->accent = a; cui_set_accent(ui, (cui_accent)a); }
+                cui_row(ui, .justify = CUI_JUSTIFY_BETWEEN) {
+                    for (int a = 0; a < CUI_ACCENT_COUNT; a++) {
+                        static const unsigned hex[CUI_ACCENT_COUNT] = { 0x555555, 0x7747ff, 0x0562ef, 0x00864b, 0xf3ad20, 0xc25300, 0xd1403a, 0xd23286 };
+                        swatch_data d = { CUI_RGB(hex[a]), g->accent == a };
+                        char id[32];
+                        snprintf(id, sizeof id, "accent-%d", a);
+                        cui_canvas_result r = cui_canvas(ui, id, CUI_PX(22), CUI_PX(22), paint_swatch, &d, sizeof d);
+                        cui_tooltip(ui, cui_accent_name((cui_accent)a));
+                        if (r.clicked) { g->accent = a; cui_set_accent(ui, (cui_accent)a); }
+                    }
                 }
             }
         }
@@ -823,31 +833,44 @@ void gallery_frame(cui_ctx *ui, gallery *g) {
     /* below 760 points the page list moves into a drawer behind a menu button */
     bool narrow = cui_viewport_size(ui).x < 760;
     if (!narrow) g->drawer = false;
+    bool list = !narrow && !g->sidebar_hidden;
     cui_row(ui, .width = CUI_FILL, .height = CUI_FILL, .align = CUI_ALIGN_STRETCH, .bg = CUI_COLOR_BACKGROUND) {
-        if (!narrow) { sidebar(ui, g, false); cui_separator(ui); }
-        cui_scroll(ui, .id = "main", .width = CUI_FILL, .fade_edges = true) {
-            cui_row(ui, .justify = CUI_JUSTIFY_CENTER, .align = CUI_ALIGN_START) {
-                cui_column(ui, .width = CUI_FILL, .max_width = 920, .pad_x = narrow ? 16 : 40, .pad_top = narrow ? 12 : 36, .pad_bottom = 64, .gap = 20) {
-                    if (narrow) cui_row(ui, .gap = 8, .width = CUI_FILL) {
-                        if (cui_icon_button(ui, CUI_ICON_MENU, .tooltip = "Components")) g->drawer = true;
-                        cui_text(ui, "CUI", .font = CUI_FONT_MEDIUM, .size = 15);
-                    }
-                    if (g->page != PAGE_OVERVIEW) {
-                        cui_column(ui, .gap = 6, .pad_bottom = 8) {
-                            cui_heading(ui, g->page < PAGE_COUNT ? page_names[g->page] : gallery_more_name(g->page - PAGE_COUNT), 2);
+        if (list) { sidebar(ui, g, false); cui_separator(ui); }
+        cui_column(ui, .width = CUI_FILL, .height = CUI_FILL) {
+            /* the main title bar segment: with the page list away, its name and button move here */
+            cui_title_bar(ui, "title", .title = list ? NULL : "CUI") {
+                if (narrow) { if (cui_icon_button(ui, CUI_ICON_MENU, .size = CUI_SIZE_SM, .tooltip = "Components")) g->drawer = true; }
+                else if (!list) sidebar_button(ui, g);
+                cui_spacer(ui);
+                if (cui_button(ui, "Search components", .icon = CUI_ICON_SEARCH, .shortcut = "Ctrl K", .size = CUI_SIZE_SM,
+                               .width = CUI_PX(narrow ? 200 : 280)))
+                    g->palette_open = true;
+                cui_spacer(ui);
+                if (cui_icon_button(ui, g->dark ? CUI_ICON_SUN : CUI_ICON_MOON, .size = CUI_SIZE_SM, .tooltip = "Switch theme", .shortcut = "Ctrl J")) {
+                    g->dark = !g->dark;
+                    cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT);
+                }
+            }
+            cui_scroll(ui, .id = "main", .width = CUI_FILL, .fade_edges = true) {
+                cui_row(ui, .justify = CUI_JUSTIFY_CENTER, .align = CUI_ALIGN_START) {
+                    cui_column(ui, .width = CUI_FILL, .max_width = 920, .pad_x = narrow ? 16 : 40, .pad_top = narrow ? 12 : 36, .pad_bottom = 64, .gap = 20) {
+                        if (g->page != PAGE_OVERVIEW) {
+                            cui_column(ui, .gap = 6, .pad_bottom = 8) {
+                                cui_heading(ui, g->page < PAGE_COUNT ? page_names[g->page] : gallery_more_name(g->page - PAGE_COUNT), 2);
+                            }
                         }
-                    }
-                    if (g->page >= PAGE_COUNT) gallery_more_page(ui, g->page - PAGE_COUNT);
-                    switch (g->page) {
-                    case PAGE_OVERVIEW: page_overview(ui, g); break;
-                    case PAGE_BUTTONS: page_buttons(ui, g); break;
-                    case PAGE_INPUTS: page_inputs(ui, g); break;
-                    case PAGE_SELECTION: page_selection(ui, g); break;
-                    case PAGE_NAVIGATION: page_navigation(ui, g); break;
-                    case PAGE_OVERLAYS: page_overlays(ui, g); break;
-                    case PAGE_FEEDBACK: page_feedback(ui, g); break;
-                    case PAGE_DATA: page_data(ui, g); break;
-                    case PAGE_CHARTS: page_charts(ui, g); break;
+                        if (g->page >= PAGE_COUNT) gallery_more_page(ui, g->page - PAGE_COUNT);
+                        switch (g->page) {
+                        case PAGE_OVERVIEW: page_overview(ui, g); break;
+                        case PAGE_BUTTONS: page_buttons(ui, g); break;
+                        case PAGE_INPUTS: page_inputs(ui, g); break;
+                        case PAGE_SELECTION: page_selection(ui, g); break;
+                        case PAGE_NAVIGATION: page_navigation(ui, g); break;
+                        case PAGE_OVERLAYS: page_overlays(ui, g); break;
+                        case PAGE_FEEDBACK: page_feedback(ui, g); break;
+                        case PAGE_DATA: page_data(ui, g); break;
+                        case PAGE_CHARTS: page_charts(ui, g); break;
+                        }
                     }
                 }
             }

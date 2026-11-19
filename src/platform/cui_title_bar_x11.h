@@ -12,6 +12,7 @@ typedef struct {
     Window win, root;
     Atom move_resize, frame_extents, net_wm_state;
     bool resizable;
+    bool off;                  /* the app turned its title bar off: the window manager decorates again */
     bool frame_known;          /* the window manager's frame was laid out when last asked */
     enum { CUI__X11_PRESS_NONE, CUI__X11_PRESS_CAPTION, CUI__X11_PRESS_TAKEN } press;
                                /* the button is down on the caption, where a drag moves the window,
@@ -27,6 +28,8 @@ typedef struct {
  * app. Returns false, and leaves bar unused, when it cannot. */
 bool cui__x11_title_bar_request(cui__x11_title_bar *bar, Display *dpy, Window win, int screen, bool resizable);
 void cui__x11_title_bar_release(cui__x11_title_bar *bar);
+/* Gives the decorations back to the window manager, for cui_app_set_custom_title_bar. */
+void cui__x11_title_bar_drop(cui__x11_title_bar *bar, cui_app *app);
 /* MapNotify, ReparentNotify, ConfigureNotify, Expose and PropertyNotify: whether the decorations are
  * gone, and whether the window is maximized. */
 void cui__x11_title_bar_event(cui__x11_title_bar *bar, cui_app *app, const XEvent *ev);

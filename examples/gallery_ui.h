@@ -11,6 +11,7 @@ enum {
 
 typedef struct gallery {
     int page;
+    bool sidebar_hidden;       /* the panel button in the title bar hid the page list */
     /* buttons */
     bool loading;
     int seg_view, seg_size;

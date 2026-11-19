@@ -361,6 +361,16 @@ void cui_app_minimize(cui_app *app) { app = cui__app_or_current(app); if (app) c
 void cui_app_restore(cui_app *app) { app = cui__app_or_current(app); if (app) cui__plat_restore(app); }
 void cui_app_set_position(cui_app *app, int x, int y) { app = cui__app_or_current(app); if (app) cui__plat_set_position(app, x, y); }
 
+void cui_app_set_custom_title_bar(cui_app *app, bool on) {
+    app = cui__app_or_current(app);
+    if (!app || app->desc.custom_title_bar == on) return;
+    app->desc.custom_title_bar = on;
+    cui__plat_set_custom_title_bar(app, on);
+    cui_request_redraw(app->ui);
+}
+
+bool cui_app_custom_title_bar(cui_app *app) { app = cui__app_or_current(app); return app && app->title_bar; }
+
 bool cui__app_window_frame(void *user, cui_window_frame *frame) {
     cui_app *app = user;
     if (!app->title_bar) return false;

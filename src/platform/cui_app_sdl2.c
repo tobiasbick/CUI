@@ -359,6 +359,9 @@ void cui__plat_restore(cui_app *app) {
     else if (minimized && s->normal_pos_known && cui__sdl_positions()) s->hold_place_until = cui__plat_now() + 0.5;
 }
 
+/* The system draws the title bar here: a title bar of the app's own is not available. */
+void cui__plat_set_custom_title_bar(cui_app *app, bool on) { (void)app; (void)on; }
+
 cui_window_state cui__plat_window_state(cui_app *app) {
     Uint32 flags = SDL_GetWindowFlags(cui__s(app)->win);
     return (flags & SDL_WINDOW_MINIMIZED) ? CUI_WINDOW_MINIMIZED : (flags & SDL_WINDOW_MAXIMIZED) ? CUI_WINDOW_MAXIMIZED : CUI_WINDOW_NORMAL;

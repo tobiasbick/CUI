@@ -256,7 +256,8 @@ bool cui__plat_init(cui_app *app) {
     cui_color bg = app->ui->theme.colors[CUI_TOKEN_BACKGROUND];
     swa.background_pixel = ((unsigned long)bg.r << 16) | ((unsigned long)bg.g << 8) | bg.b;
     swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
-                     PointerMotionMask | EnterWindowMask | LeaveWindowMask | StructureNotifyMask | FocusChangeMask;
+                     PointerMotionMask | EnterWindowMask | LeaveWindowMask | StructureNotifyMask | FocusChangeMask |
+                     PropertyChangeMask;   /* frame extents and state: when the app's title bar took effect */
     x->event_mask = swa.event_mask;
     x->width = (int)(app->desc.width * x->scale);
     x->height = (int)(app->desc.height * x->scale);
@@ -272,10 +273,7 @@ bool cui__plat_init(cui_app *app) {
     x->win = XCreateWindow(x->dpy, root, x->normal_x, x->normal_y, (unsigned)x->width, (unsigned)x->height, 0, x->depth, InputOutput,
                            x->visual, CWColormap | CWBorderPixel | CWBackPixel | CWEventMask, &swa);
     if (!x->win) { XCloseDisplay(x->dpy); free(x); app->plat = NULL; return false; }
-    if (app->desc.custom_title_bar && cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) {
-        x->event_mask |= PropertyChangeMask;   /* the frame extents and the state tell when it took effect */
-        XSelectInput(x->dpy, x->win, x->event_mask);
-    }
+    if (app->desc.custom_title_bar) cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size);
     x->wm_protocols = XInternAtom(x->dpy, "WM_PROTOCOLS", False);
     x->wm_delete = XInternAtom(x->dpy, "WM_DELETE_WINDOW", False);
     x->net_wm_name = XInternAtom(x->dpy, "_NET_WM_NAME", False);
@@ -996,6 +994,17 @@ static void cui__x11_read_state(cui__x11 *x, bool *maximized, bool *minimized) {
     if (data) XFree(data);
     *maximized = horz && vert;
     *minimized = hidden;
+}
+
+void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
+    cui__x11 *x = cui__x(app);
+    if (!on) {
+        cui__x11_title_bar_drop(&x->title_bar, app);
+        return;
+    }
+    /* asks again from scratch; the frame check runs as on mapping, at the window manager's answer */
+    cui__x11_title_bar_release(&x->title_bar);
+    if (cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) XFlush(x->dpy);
 }
 
 cui_window_state cui__plat_window_state(cui_app *app) {
