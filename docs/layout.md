@@ -266,6 +266,17 @@ cui_split(ui, "main", &ratio, .min_first = 220, .min_second = 360) {
 
 The divider highlights on hover and can be dragged. Use `.vertical = true` to split top and bottom. When the pane minimums cannot both fit, they share the space in proportion to their requested sizes.
 
+`ratio` is the first pane's share of the room, so both panes grow with the window. For a sidebar that keeps its width while the content takes the rest, set `.fixed_first = true`: `ratio` is then the first pane's size in points, and dragging the divider changes it. A smaller window narrows the pane down to `min_first` for the time being, and it gets its size back when the room returns.
+
+```c
+static float sidebar_width = 240;   /* points */
+cui_split(ui, "main", &sidebar_width, .fixed_first = true, .min_first = 180, .min_second = 420) {
+    sidebar(ui);
+    cui_split_next(ui);
+    editor(ui);
+}
+```
+
 ## Reading layout results
 
 Layout is computed at the end of the frame. Interaction uses the rectangles from the previous frame, which is invisible in practice and keeps every component a single function call. To read a rectangle yourself:

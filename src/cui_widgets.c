@@ -1350,7 +1350,7 @@ void cui_scroll_to(cui_ctx *ui, const char *scroll_id, float y) {
 /* Split view                                                               */
 /* ------------------------------------------------------------------------ */
 
-struct cui_split_build { cui_id id; float *ratio; bool vertical; int container; float min1, min2; struct cui_split_build *prev; float hover; };
+struct cui_split_build { cui_id id; float *ratio; bool vertical, fixed; int container; float min1, min2; struct cui_split_build *prev; float hover; };
 typedef struct { float hover; bool rtl; } cui__split_state;
 
 static void cui__paint_split(cui_ctx *ui, cui_node *n, void *data) {
@@ -1365,7 +1365,7 @@ void cui_split_begin(cui_ctx *ui, const char *id_str, float *ratio, const cui_sp
     if (!o) o = &d;
     cui_id id = cui_make_id(ui, id_str);
     struct cui_split_build *b = cui__frame_alloc(ui, sizeof *b);
-    b->id = id; b->ratio = ratio; b->vertical = o->vertical;
+    b->id = id; b->ratio = ratio; b->vertical = o->vertical; b->fixed = o->fixed_first;
     b->min1 = o->min_first > 0 ? o->min_first : 120;
     b->min2 = o->min_second > 0 ? o->min_second : 120;
     b->prev = ui->building.split;
@@ -1386,7 +1386,7 @@ void cui_split_begin(cui_ctx *ui, const char *id_str, float *ratio, const cui_sp
     if (r.active && ui->mdown[0] && available > 0) {
         float pos = o->vertical ? ui->my - pr.y : st->rtl ? pr.x + pr.w - ui->mx : ui->mx - pr.x;
         pos = cui__clampf(pos, b->min1, CUI_MAX(b->min1, available - b->min2));
-        *ratio = pos / available;
+        *ratio = o->fixed_first ? pos : pos / available;
     }
     if (r.hovered || r.active) cui__set_cursor(ui, o->vertical ? CUI_CURSOR_RESIZE_NS : CUI_CURSOR_RESIZE_EW);
     cui__tween(ui, &st->hover, (r.hovered || r.active) ? 1.0f : 0.0f, CUI__T_HOVER);
@@ -1401,11 +1401,19 @@ void cui_split_begin(cui_ctx *ui, const char *id_str, float *ratio, const cui_sp
     n->paint = cui__paint_split; n->paint_data = st;
     cui__open(ui, i);
     float rr = cui__clampf(*ratio, 0.02f, 0.98f);
+    cui_size first = CUI_GROW(rr * 1000);
+    if (o->fixed_first) {
+        /* the size in points, kept when the split grows or shrinks; *ratio stays as asked, so
+         * the pane comes back to it when there is room again */
+        float size = CUI_MAX(*ratio, b->min1);
+        if (available > 0) size = CUI_MIN(size, CUI_MAX(b->min1, available - b->min2));
+        first = CUI_PX(size);
+    }
     int p1 = cui__node_new(ui, 0);
     cui_node *pn = &ui->nodes[p1];
     pn->flags |= CUI_NF_CLIP;
-    if (o->vertical) { pn->h = CUI_GROW(rr * 1000); pn->w = CUI_FILL; }
-    else { pn->w = CUI_GROW(rr * 1000); pn->h = CUI_FILL; }
+    if (o->vertical) { pn->h = first; pn->w = CUI_FILL; }
+    else { pn->w = first; pn->h = CUI_FILL; }
     pn->min_w = o->vertical ? 0 : b->min1;
     pn->min_h = o->vertical ? b->min1 : 0;
     cui__open(ui, p1);
@@ -1444,11 +1452,12 @@ void cui_split_next(cui_ctx *ui) {
         ui->nodes[h].flags |= CUI_NF_ON_TOP;
     }
     float rr = cui__clampf(*b->ratio, 0.02f, 0.98f);
+    cui_size second = b->fixed ? CUI_FILL : CUI_GROW((1 - rr) * 1000);   /* beside a fixed pane: the rest */
     int p2 = cui__node_new(ui, 0);
     cui_node *pn = &ui->nodes[p2];
     pn->flags |= CUI_NF_CLIP;
-    if (b->vertical) { pn->h = CUI_GROW((1 - rr) * 1000); pn->w = CUI_FILL; pn->min_h = b->min2; }
-    else { pn->w = CUI_GROW((1 - rr) * 1000); pn->h = CUI_FILL; pn->min_w = b->min2; }
+    if (b->vertical) { pn->h = second; pn->w = CUI_FILL; pn->min_h = b->min2; }
+    else { pn->w = second; pn->h = CUI_FILL; pn->min_w = b->min2; }
     cui__open(ui, p2);
 }
 

@@ -10,7 +10,9 @@ Before a proposal, split it into the title bar and the two general fixes below.
   with a segment of its own (`.no_window_buttons`), and
   `cui_app_set_custom_title_bar` switches it at run time. The gallery draws its
   own title bar, and its Window page switches it and shows and changes the
-  window's state. Platform layers use
+  window's state. `cui_split` takes `.fixed_first` for a sidebar that keeps
+  its width; the gallery's page list uses it while its own title bar is in
+  effect. Platform layers use
   `cui_platform_iface.window_frame` and `.window_button` together with
   `cui_title_bar_hit_test`.
 - **X11 OpenGL idle** (`6ddb1ef`): an idle window presented continuously,
@@ -28,7 +30,8 @@ Before a proposal, split it into the title bar and the two general fixes below.
   title bar (sidebar segment): dragging and double click in both segments,
   and hiding and showing the sidebar. The gallery's title bar and Window page:
   switching the title bar off and on keeps the content in place, and the
-  Maximize and Restore buttons work.
+  Maximize and Restore buttons work. The page list's divider drags its width,
+  keeps it when the window grows and stops at its 180 pt minimum.
 - Debian, KDE KWin 6.7 X11, both renderers: the same interactions, a
   120-launch startup check, the edge hairline and idle CPU. CTest 26/26.
 - KDE KWin 6.7 Wayland through XWayland, both renderers: 40/40 launches with

@@ -506,9 +506,17 @@ CUI_API void cui_scroll_begin(cui_ctx *ui, const cui_scroll_opts *opts);
 CUI_API void cui_scroll_end(cui_ctx *ui);
 CUI_API void cui_scroll_to(cui_ctx *ui, const char *scroll_id, float y);
 
-/* Resizable split view: two panes with a draggable divider. `ratio` is the
- * size of the first pane in 0..1. Call cui_split_next between the panes. */
-typedef struct cui_split_opts { int _; bool vertical; float min_first, min_second; cui_size width, height; } cui_split_opts;
+/* Resizable split view: two panes with a draggable divider; call cui_split_next between them.
+ * *ratio is the first pane's share of the room, 0..1, or with fixed_first its size in points:
+ * then the first pane keeps its size when the split grows or shrinks, as a sidebar does, and the
+ * second takes the rest. The drag writes *ratio, within min_first and min_second (default 120). */
+typedef struct cui_split_opts {
+    int _;
+    bool vertical;             /* panes above each other */
+    float min_first, min_second;
+    cui_size width, height;
+    bool fixed_first;          /* *ratio is the first pane's size in points */
+} cui_split_opts;
 CUI_API void cui_split_begin(cui_ctx *ui, const char *id, float *ratio, const cui_split_opts *opts);
 CUI_API void cui_split_next(cui_ctx *ui);
 CUI_API void cui_split_end(cui_ctx *ui);

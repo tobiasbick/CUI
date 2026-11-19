@@ -2006,6 +2006,7 @@ static void page_voice(cui_ctx *ui) {
 
 static const gallery_window *window_api;
 void gallery_more_set_window(const gallery_window *window) { window_api = window; }
+bool gallery_more_title_bar(void) { return window_api && window_api->title_bar(); }
 
 static void page_window(cui_ctx *ui) {
     const gallery_window *w = window_api;

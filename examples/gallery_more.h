@@ -16,6 +16,8 @@ typedef struct gallery_window {
     void (*maximize)(void), (*minimize)(void), (*restore)(void);
 } gallery_window;
 void gallery_more_set_window(const gallery_window *window);
+/* True while the gallery draws its own title bar; false without a window (tests, screenshots). */
+bool gallery_more_title_bar(void);
 
 int gallery_more_count(void);
 const char *gallery_more_name(int page);
