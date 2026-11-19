@@ -34,19 +34,16 @@ Before a proposal, split it into the title bar and the two general fixes below.
   keeps it when the window grows and stops at its 180 pt minimum.
 - Debian, KDE KWin 6.7 X11, both renderers: the same interactions, a
   120-launch startup check, the edge hairline and idle CPU. CTest 26/26.
+  The gallery's split title bar, divider and Window page buttons, and the
+  run-time switch: the window is withdrawn and mapped again so that KWin reads
+  the changed Motif hint, keeps its place and its maximized state, and blinks
+  for under 50 ms.
 - KDE KWin 6.7 Wayland through XWayland, both renderers: 40/40 launches with
   window buttons and the hairline, and `--system-frame` without flashes.
   CTest 26/26.
 
 ## Open problems
 
-- **Run-time switch on X11 unverified.** KWin X11 reads the Motif hint only
-  when it takes a window on, so changing it on a mapped window did nothing:
-  switched off, the window had no buttons at all, and switched on it stayed
-  without them. The window is now withdrawn and mapped again after the change,
-  at its place and keeping the maximized state. This fix has been neither
-  compiled nor run. On KWin X11 the split title bar, the divider and the
-  Window page's buttons pass.
 - **Wayland input untested.** Under KWin Wayland, dragging, double click, the
   window buttons, edge resizing and hover have not been tried, because
   synthetic `xdotool` input does not reach KWin. Test them by hand.
