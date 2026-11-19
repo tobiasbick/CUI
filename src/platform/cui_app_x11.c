@@ -89,6 +89,8 @@ typedef struct {
     char *clip_read;
     bool mapped;
     cui__x11_title_bar title_bar;   /* desc.custom_title_bar */
+    bool refit;                     /* the frame came back: put the content where it was once it is known */
+    int refit_x, refit_y;
     /* X11 keeps no normal size and place for a maximized window: noted while it is normal */
     int normal_x, normal_y, normal_w, normal_h;   /* content origin on the root window, size in pixels */
     bool normal_pos_known;
@@ -777,6 +779,12 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
     case ReparentNotify:
     case PropertyNotify:
         cui__x11_title_bar_event(&x->title_bar, app, ev);
+        /* KWin lays the new frame around the old top edge, half above it: with the frame's
+         * size known, the content goes back to its place (static gravity names the content) */
+        if (x->refit && ev->xproperty.atom == x->title_bar.frame_extents) {
+            x->refit = false;
+            XMoveWindow(x->dpy, x->win, x->refit_x, x->refit_y);
+        }
         break;
     case ClientMessage:
         if (cui__x11_xdnd_message(app, &ev->xclient)) break;
@@ -1036,7 +1044,10 @@ void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
     cui__x11 *x = cui__x(app);
     if (!on) {
         cui__x11_title_bar_drop(&x->title_bar, app);
+        x->refit = x->mapped && cui__plat_window_state(app) == CUI_WINDOW_NORMAL;
+        if (x->refit) cui__x11_content_origin(x, &x->refit_x, &x->refit_y);
     } else {
+        x->refit = false;
         /* asks again from scratch; the MapNotify of the remap runs the frame check */
         cui__x11_title_bar_release(&x->title_bar);
         if (!cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) return;
