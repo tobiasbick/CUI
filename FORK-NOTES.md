@@ -42,19 +42,20 @@ Before a proposal, split it into the title bar and the two general fixes below.
   window buttons and the hairline, and `--system-frame` without flashes.
   CTest 26/26. Input at display scale 1.3 (OpenGL): double click in both
   segments maximizes and restores, Minimize, Maximize, Restore and Close work,
-  Close turns red on hover, and the edges show the sizing cursors.
+  Close turns red on hover, and the edges show the sizing cursors. By hand in
+  the gallery: moving the window from the bar's empty space (not over its
+  widgets), with the bar on and off; resizing at every edge and corner;
+  restore-on-drag; the run-time switch, also while maximized; the divider with
+  its 180 pt minimum; the panel button; and the Window page's controls and
+  readouts.
 
 ## Open problems
 
-- **Moving and resizing under Wayland untested.** The app sends
-  `_NET_WM_MOVERESIZE` after the drag threshold, but KWin Wayland ignores
-  interactive moves from emulated input; it does not move a `--system-frame`
-  window by its own title bar either. Drag the bar and the edges by hand.
-  The gallery's divider and its title bar switch have not been run there.
-- **A lost Close click under Wayland, seen once.** After minimizing, and
-  activating the window again through client messages, the first click on
-  Close did nothing and the second closed it. It may be KWin's activation
-  click rather than CUI. Not reproduced.
+- **Emulated input cannot move windows under KWin Wayland.** KWin ignores
+  `_NET_WM_MOVERESIZE` from emulated input, also for its own title bar, so
+  moving and resizing there can only be tested by hand. One automated run lost
+  a Close click after minimizing and activating the window through client
+  messages; by hand it did not happen.
 - **`3e08e5f` not exercised.** It re-checks the frame on every
   `ReparentNotify`, for window managers that map a window before reparenting
   it. Every later KWin build ran it, but no window manager that reparents
