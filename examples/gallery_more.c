@@ -2046,7 +2046,7 @@ static void page_window(cui_ctx *ui) {
     cui_card(ui, .pad = 16, .gap = 16, .width = CUI_FILL) {
         cui_row(ui, .gap = 32, .wrap = true, .align = CUI_ALIGN_START) {
             cui_readout(ui, "STATE", states[state], .size = CUI_SIZE_SM, .accent = state == CUI_WINDOW_MAXIMIZED);
-            cui_readout(ui, "POSITION", pos, .size = CUI_SIZE_SM, .detail = "the content's corner, desktop pixels");
+            cui_readout(ui, "NORMAL POSITION", pos, .size = CUI_SIZE_SM, .detail = "the content's corner when restored");
             cui_readout(ui, "NORMAL SIZE", normal, .size = CUI_SIZE_SM, .unit = "PT", .detail = "restored, also while maximized");
             cui_readout(ui, "SIZE NOW", size, .size = CUI_SIZE_SM, .unit = "PT");
         }

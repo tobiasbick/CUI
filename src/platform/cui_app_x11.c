@@ -996,15 +996,52 @@ static void cui__x11_read_state(cui__x11 *x, bool *maximized, bool *minimized) {
     *minimized = hidden;
 }
 
+/* True once the window manager has let go of a withdrawn window: WM_STATE gone or Withdrawn. */
+static bool cui__x11_withdrawn(cui__x11 *x) {
+    Atom type;
+    int format;
+    unsigned long count, after;
+    unsigned char *data = NULL;
+    bool gone = XGetWindowProperty(x->dpy, x->win, x->wm_state, 0, 2, False, x->wm_state, &type, &format, &count, &after, &data) != Success ||
+                !data || count < 1 || ((const long *)data)[0] == WithdrawnState;
+    if (data) XFree(data);
+    return gone;
+}
+
+/* Window managers read the Motif hints when they take a window on, KWin among them, so a
+ * changed hint takes effect once the window is withdrawn and mapped again. The content keeps
+ * its place, and a maximized window stays maximized. */
+static void cui__x11_remap(cui_app *app) {
+    cui__x11 *x = cui__x(app);
+    if (!x->mapped) return;
+    bool maximized = cui__plat_window_state(app) == CUI_WINDOW_MAXIMIZED;
+    int px, py;
+    cui__x11_content_origin(x, &px, &py);
+    XWithdrawWindow(x->dpy, x->win, x->screen);
+    XSync(x->dpy, False);
+    for (int i = 0; i < 100 && !cui__x11_withdrawn(x); i++) {   /* at most half a second */
+        struct timespec ts = { 0, 5000000 };
+        nanosleep(&ts, NULL);
+    }
+    XMoveWindow(x->dpy, x->win, x->normal_pos_known ? x->normal_x : px, x->normal_pos_known ? x->normal_y : py);
+    if (maximized) {
+        Atom state[2] = { x->net_wm_maximized_horz, x->net_wm_maximized_vert };
+        XChangeProperty(x->dpy, x->win, x->net_wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *)state, 2);
+    }
+    XMapWindow(x->dpy, x->win);
+    XFlush(x->dpy);
+}
+
 void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
     cui__x11 *x = cui__x(app);
     if (!on) {
         cui__x11_title_bar_drop(&x->title_bar, app);
-        return;
+    } else {
+        /* asks again from scratch; the MapNotify of the remap runs the frame check */
+        cui__x11_title_bar_release(&x->title_bar);
+        if (!cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) return;
     }
-    /* asks again from scratch; the frame check runs as on mapping, at the window manager's answer */
-    cui__x11_title_bar_release(&x->title_bar);
-    if (cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) XFlush(x->dpy);
+    cui__x11_remap(app);
 }
 
 cui_window_state cui__plat_window_state(cui_app *app) {

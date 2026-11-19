@@ -40,11 +40,13 @@ Before a proposal, split it into the title bar and the two general fixes below.
 
 ## Open problems
 
-- **Split title bar and run-time switch on Linux untested.** The sidebar
-  segment works through the same hit test on every backend, but it has only
-  been tried on Windows. On X11, `cui_app_set_custom_title_bar` deletes or
-  sets the Motif hint while the window is mapped and relies on the window
-  manager redecorating it; it has been neither compiled nor run there.
+- **Run-time switch on X11 unverified.** KWin X11 reads the Motif hint only
+  when it takes a window on, so changing it on a mapped window did nothing:
+  switched off, the window had no buttons at all, and switched on it stayed
+  without them. The window is now withdrawn and mapped again after the change,
+  at its place and keeping the maximized state. This fix has been neither
+  compiled nor run. On KWin X11 the split title bar, the divider and the
+  Window page's buttons pass.
 - **Wayland input untested.** Under KWin Wayland, dragging, double click, the
   window buttons, edge resizing and hover have not been tried, because
   synthetic `xdotool` input does not reach KWin. Test them by hand.
