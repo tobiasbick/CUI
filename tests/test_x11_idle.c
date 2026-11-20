@@ -18,18 +18,31 @@ static double monotonic_seconds(void) {
     return (double)ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
+/* The subscription also delivers Pixmap completions, with independent serials. */
+static xcb_present_complete_notify_event_t *read_msc(xcb_connection_t *conn, xcb_special_event_t *queue,
+                                                     uint32_t serial, bool wait) {
+    for (;;) {
+        xcb_present_complete_notify_event_t *event = (void *)(wait ? xcb_wait_for_special_event(conn, queue)
+                                                                   : xcb_poll_for_special_event(conn, queue));
+        if (!event) return NULL;
+        if (event->event_type == XCB_PRESENT_COMPLETE_NOTIFY &&
+            event->kind == XCB_PRESENT_COMPLETE_KIND_NOTIFY_MSC && event->serial == serial) return event;
+        free(event);
+    }
+}
+
 static int check_wait(cui_app *app, xcb_connection_t *conn, xcb_window_t win, xcb_special_event_t *queue) {
     /* Query the current refresh counter, then arrange a second notification
      * several refreshes ahead so it arrives while the app is asleep. */
     xcb_present_notify_msc(conn, win, 1, 0, 0, 0);
     xcb_flush(conn);
-    xcb_present_complete_notify_event_t *first =
-        (void *)xcb_wait_for_special_event(conn, queue);
-    if (!first || first->event_type != XCB_PRESENT_COMPLETE_NOTIFY || first->serial != 1) {
+    xcb_present_complete_notify_event_t *first = read_msc(conn, queue, 1, true);
+    if (!first) {
         fprintf(stderr, "failed to read the initial Present notification\n");
-        free(first);
         return 1;
     }
+    /* Another Present completion can precede ours on the same queue. */
+    xcb_present_notify_msc(conn, win, 3, first->msc + 2, 0, 0);
     xcb_present_notify_msc(conn, win, 2, first->msc + 4, 0, 0);
     free(first);
     xcb_flush(conn);
@@ -39,9 +52,8 @@ static int check_wait(cui_app *app, xcb_connection_t *conn, xcb_window_t win, xc
     double start = monotonic_seconds();
     bool running = cui_app_frame(app);
     double elapsed = monotonic_seconds() - start;
-    xcb_present_complete_notify_event_t *second =
-        (void *)xcb_poll_for_special_event(conn, queue);
-    bool delivered = second && second->event_type == XCB_PRESENT_COMPLETE_NOTIFY && second->serial == 2;
+    xcb_present_complete_notify_event_t *second = read_msc(conn, queue, 2, false);
+    bool delivered = second != NULL;
     free(second);
     printf("private Present notification: %s, next frame after %.1f ms (timer %.0f ms)\n",
            delivered ? "received" : "missing", elapsed * 1000, wait * 1000);
