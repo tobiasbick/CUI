@@ -65,6 +65,8 @@ CUI's look is deliberate. These are the rules every component follows, and they 
 - Exits are faster than entrances. Everything is interruptible because everything is a spring.
 - Every animation has a reduced motion path that keeps the final state and the feedback.
 
+![Button at rest, on the first hover frame after one idle second, and once settled. The middle column shows the intermediate fill introduced by the fix in both themes.](images/hover-after-idle.png)
+
 ## Responsive
 
 - Every screen works from a 360 point phone to a wide monitor. Layout adapts before anything gets smaller: fill up to a comfortable width, wrap side by side parts into a stack, then change structure (a drawer for the sidebar, one pane at a time).
