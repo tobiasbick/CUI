@@ -7135,7 +7135,17 @@ static void test_hex_view(void) {
     run(ui, build_hex, &h, 20);
     p = hex_cell(ui, 0, 0, false);
     cui_input_mouse_move(ui, p.x, p.y);
+    cui_set_reduced_motion(ui, false);
+    run(ui, build_hex, &h, 90);
+    CHECK(!cui_needs_redraw(ui));
+    CHECK(h.res.hovered == 0);
     cui_input_scroll(ui, 0, -2);
+    cui_begin_frame(ui, 1.0f);
+    build_hex(ui, &h);
+    cui_end_frame(ui);
+    /* Hit testing on the next frame sees the first frame's scroll position. */
+    run(ui, build_hex, &h, 1);
+    CHECK(h.res.hovered > 0 && h.res.hovered < 16 * 6);
     run(ui, build_hex, &h, 20);
     CHECK(h.res.hovered == 16 * 6);
     cui_destroy(ui);
