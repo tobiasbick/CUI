@@ -6087,6 +6087,69 @@ static void test_read_only_plan_activation(void) {
     }
 }
 
+typedef struct { cui_cal_event ev[2]; cui_gantt_task tasks[2]; bool gantt, read_only, disabled; int count; } held_plan;
+
+/** Build a week calendar or a Gantt chart whose editability, input and item count the test changes. */
+static void build_held_plan(cui_ctx *ui, void *user) {
+    held_plan *p = user;
+    const cui_date origin = { 2026, 3, 2 };
+    cui_column(ui, .pad = 16, .width = CUI_FILL) {
+        cui_push_disabled(ui, p->disabled);
+        if (p->gantt)
+            cui_gantt(ui, "gt", p->tasks, p->count, origin, 30, .day_width = 30, .row_height = 40, .read_only = p->read_only);
+        else
+            cui_week_calendar(ui, "wk", origin, p->ev, p->count, .start_hour = 8, .end_hour = 18, .hour_height = 40,
+                              .height = CUI_PX(500), .read_only = p->read_only);
+        cui_pop_disabled(ui);
+    }
+}
+
+/** A drag that was interrupted by read-only mode, disabled input or the item going away
+ *  does not come back when the item can be edited again while the button is still held. */
+static void test_planning_drag_interrupted(void) {
+    printf("planning: an interrupted drag needs a new press\n");
+    for (int gantt = 0; gantt < 2; gantt++)
+        for (int cut = 0; cut < 3; cut++) {   /* 0 read-only, 1 disabled, 2 the item goes away */
+            cui_ctx *ui = new_ctx();
+            cui_set_viewport(ui, 900, 800, 1);
+            held_plan p = { .gantt = gantt != 0, .count = 2 };
+            p.ev[0] = (cui_cal_event){ "Review", NULL, 1, 10, 11, CUI_TONE_INFO };
+            p.ev[1] = (cui_cal_event){ "Lunch", NULL, 3, 12, 13, CUI_TONE_SUCCESS };
+            p.tasks[0] = (cui_gantt_task){ "Build", NULL, 2, 6, 0, CUI_TONE_INFO, -1, false };
+            p.tasks[1] = (cui_gantt_task){ "Ship", NULL, 10, 14, 0, CUI_TONE_SUCCESS, -1, false };
+            run(ui, build_held_plan, &p, 3);
+            float x, y, dx = 0, dy = 0;
+            if (gantt) {
+                cui_rect g = rect_of(ui, cui_make_id(ui, "gt"));
+                x = g.x + 231 + 12 * 30; y = g.y + 53 + 40 + 20; dx = 30;
+            } else {
+                cui_rect w = rect_of(ui, cui_make_id(ui, "wk"));
+                x = w.x + 60 + 3.5f * (w.w - 60) / 7; y = w.y + 57 + (12.5f - 8) * 40; dy = 40;
+            }
+            /* the drag works: one step moves the second item */
+            cui_input_mouse_move(ui, x, y);
+            run(ui, build_held_plan, &p, 1);
+            cui_input_mouse_button(ui, CUI_MOUSE_LEFT, true);
+            run(ui, build_held_plan, &p, 1);
+            cui_input_mouse_move(ui, x + dx, y + dy);
+            run(ui, build_held_plan, &p, 1);
+            CHECK(gantt ? p.tasks[1].start == 11 && p.tasks[1].end == 15 : p.ev[1].start == 13 && p.ev[1].end == 14);
+            cui_cal_event ev = p.ev[1];
+            cui_gantt_task task = p.tasks[1];
+            /* one frame without editing, then editing again with the button still held */
+            if (cut == 0) p.read_only = true; else if (cut == 1) p.disabled = true; else p.count = 1;
+            run(ui, build_held_plan, &p, 1);
+            p.read_only = p.disabled = false; p.count = 2;
+            run(ui, build_held_plan, &p, 1);
+            for (int i = 2; i <= 4; i++) { cui_input_mouse_move(ui, x + i * dx, y + i * dy); run(ui, build_held_plan, &p, 1); }
+            cui_input_mouse_button(ui, CUI_MOUSE_LEFT, false);
+            run(ui, build_held_plan, &p, 1);
+            CHECK(gantt ? p.tasks[1].start == task.start && p.tasks[1].end == task.end
+                        : p.ev[1].day == ev.day && p.ev[1].start == ev.start && p.ev[1].end == ev.end);
+            cui_destroy(ui);
+        }
+}
+
 static void test_planning(void) {
     printf("planning: kanban drag between and within columns, week calendar move and resize, gantt reschedule\n");
     cui_ctx *ui = new_ctx();
@@ -9844,6 +9907,7 @@ int main(void) {
     test_emoji_release();
     test_planning();
     test_read_only_plan_activation();
+    test_planning_drag_interrupted();
     test_node_editor();
     test_disabled_node_editor_wheel();
     test_flame();
