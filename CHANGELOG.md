@@ -64,7 +64,7 @@ What changed in CUI, newest first. Every component mentioned here runs live in t
 
 ### Fixed
 
-- A week calendar or Gantt drag ends when its event or task leaves the array, the component is disabled or `read_only` changes. Before, the drag came back once editing was possible again and moved the item while the button was still held from the old press.
+- A week calendar or Gantt drag ends when the list shrinks, the component is disabled or `read_only` changes. A held mouse button can no longer resume that drag or move the item that took its place.
 - The file sidebar highlights one enclosing place or volume, so Home and its drive no longer appear selected together. Double-clicks after an idle interval use the receiving frame's time, fixing missed folder opens in an event-driven app.
 - Disabled flame graphs and timeline editors ignore wheel, pointer and keyboard gestures ([#85](https://github.com/yappologistic/CUI/issues/85)).
 - Disabled node editors ignore wheel zoom and cancel in-progress gestures ([#85](https://github.com/yappologistic/CUI/issues/85)).
