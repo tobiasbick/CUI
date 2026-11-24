@@ -15,6 +15,8 @@ typedef struct gallery_window {
     void (*set_position)(int x, int y);
     void (*maximize)(void), (*minimize)(void), (*restore)(void);
 } gallery_window;
+/* Native actions used when the gallery owns a running app window. */
+extern const gallery_window gallery_app_window;
 void gallery_more_set_window(const gallery_window *window);
 /* True while the gallery draws its own title bar; false without a window (tests, screenshots). */
 bool gallery_more_title_bar(void);

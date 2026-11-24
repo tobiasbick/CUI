@@ -16,6 +16,15 @@ animation step after an idle wait both come from upstream `master`.
   `cui_platform_iface.window_frame` and `.window_button` together with
   `cui_title_bar_hit_test`.
 
+## Automated Windows coverage
+
+The [Win32 frame test](tests/test_title_bar_win32.c) checks hit testing and
+window button input at 100% and 150% UI scale. It also checks the restored
+content rectangle when the frame is switched while maximized or minimized.
+The [gallery test](tests/test_gallery_window.c) opens the Window page through
+the sidebar and drives its frame switch, window controls and saved position.
+Both run as part of CTest on the native Win32 backend.
+
 ## Verification before the upstream merge
 
 - Windows 11, OpenGL and software: window buttons, Snap layouts, dragging,

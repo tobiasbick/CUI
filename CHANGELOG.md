@@ -74,6 +74,7 @@ What changed in CUI, newest first. Every component mentioned here runs live in t
 
 ### Fixed
 
+- On Windows, a window with a custom title bar opens at the requested content size even when the monitor's frame metrics differ from the initial estimate. Switching the title bar while maximized or minimized preserves that size and position on restore.
 - Enter and Space on a focused month calendar activate the selected day, also when the pointer rests on another day ([#124](https://github.com/yappologistic/CUI/issues/124)).
 - The single-file build compiles with GCC 15 at `-O3` and `-Werror=array-bounds`; CI now checks it ([#123](https://github.com/yappologistic/CUI/issues/123)).
 - macOS Metal renderer: the window's content no longer jitters while the window is dragged to a new size. Each frame drawn during the drag is shown together with the new window size, as the software renderer's already are.

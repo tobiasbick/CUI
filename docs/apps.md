@@ -92,6 +92,8 @@ With `.custom_title_bar = true` the system's title bar goes and the app draws on
 
 `cui_app_set_custom_title_bar(NULL, on)` turns it on or off while the window is open, for a setting in the app; the content keeps its size and place, and the window grows or shrinks by the system's caption. `cui_app_custom_title_bar(NULL)` says whether the app's own title bar is in effect. The gallery's Window page has the switch, beside the window's state and the calls that change it.
 
+On Windows the switch also preserves the normal content rectangle when the window is maximized or minimized. The [gallery window actions](../examples/gallery_app_window.c) connect the Window page to the running app. The [gallery test](../tests/test_gallery_window.c) operates the controls on that page, and the [Win32 frame test](../tests/test_title_bar_win32.c) exercises the caption and window buttons.
+
 ```c
 static bool own = true;
 if (cui_switch(ui, "Draw the title bar in the app", &own)) cui_app_set_custom_title_bar(NULL, own);

@@ -608,17 +608,18 @@ bool cui__plat_init(cui_app *app) {
     if (!w->hwnd) { free(w); app->plat = NULL; return false; }
     DragAcceptFiles(w->hwnd, TRUE);   /* files dropped from Explorer arrive as WM_DROPFILES */
     w->scale = cui__win32_window_scale(w->hwnd);
-    if (w->scale != scale) {
-        /* the frame at the DPI of the monitor the window opened on, which a saved place can make
-         * another than the primary one */
-        f = cui__win32_frame(app, w->hwnd);
-        int fw = (int)(app->desc.width * w->scale) + (f.right - f.left);
-        int fh = (int)(app->desc.height * w->scale) + (f.bottom - f.top);
-        SetWindowPos(w->hwnd, NULL, 0, 0, fw, fh, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    /* The initial estimate uses system metrics. Once the HWND has a monitor,
+     * measure its actual frame, even when the app uses a fixed UI scale. */
+    RECT cr, outer;
+    if (GetClientRect(w->hwnd, &cr) && GetWindowRect(w->hwnd, &outer)) {
+        int dx = (int)(app->desc.width * w->scale) - cr.right;
+        int dy = (int)(app->desc.height * w->scale) - cr.bottom;
+        if (dx || dy)
+            SetWindowPos(w->hwnd, NULL, 0, 0, outer.right - outer.left + dx, outer.bottom - outer.top + dy,
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
     /* the frame was measured at the primary monitor's DPI: place the content exactly */
     if (left != CW_USEDEFAULT) cui__plat_set_position(app, pl->x, pl->y);
-    RECT cr;
     GetClientRect(w->hwnd, &cr);
     w->width = cr.right; w->height = cr.bottom;
     w->hdc = GetDC(w->hwnd);
@@ -756,19 +757,32 @@ void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
     cui__win32 *w = cui__w(app);
     if (app->title_bar == on) return;
     /* the content stays where it is: the window grows or shrinks by the caption */
-    RECT outer, before = cui__win32_frame(app, w->hwnd);
-    GetWindowRect(w->hwnd, &outer);
+    RECT before = cui__win32_frame(app, w->hwnd);
     app->title_bar = on;
     app->title_bar_maximized = IsZoomed(w->hwnd) != 0;
     RECT after = cui__win32_frame(app, w->hwnd);
     UINT flags = SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOACTIVATE;
-    if (IsZoomed(w->hwnd) || IsIconic(w->hwnd)) {
+    RECT outer;
+    WINDOWPLACEMENT place = { .length = sizeof place };
+    bool use_saved = IsZoomed(w->hwnd) || IsIconic(w->hwnd);
+    if (use_saved) {
+        if (!GetWindowPlacement(w->hwnd, &place)) {
+            SetWindowPos(w->hwnd, NULL, 0, 0, 0, 0, flags | SWP_NOMOVE | SWP_NOSIZE);
+            return;
+        }
+        outer = place.rcNormalPosition;
+    } else GetWindowRect(w->hwnd, &outer);
+    outer.left += after.left - before.left;
+    outer.top += after.top - before.top;
+    outer.right += after.right - before.right;
+    outer.bottom += after.bottom - before.bottom;
+    if (use_saved) {
+        /* Refit the saved normal rectangle in workspace coordinates without
+         * changing whether the window is maximized or minimized. */
+        place.rcNormalPosition = outer;
+        SetWindowPlacement(w->hwnd, &place);
         SetWindowPos(w->hwnd, NULL, 0, 0, 0, 0, flags | SWP_NOMOVE | SWP_NOSIZE);
-        return;
-    }
-    int x = outer.left - before.left + after.left, y = outer.top - before.top + after.top;
-    int cw = (outer.right - outer.left) - (before.right - before.left), ch = (outer.bottom - outer.top) - (before.bottom - before.top);
-    SetWindowPos(w->hwnd, NULL, x, y, cw + (after.right - after.left), ch + (after.bottom - after.top), flags);
+    } else SetWindowPos(w->hwnd, NULL, outer.left, outer.top, outer.right - outer.left, outer.bottom - outer.top, flags);
 }
 
 void *cui__plat_native(cui_app *app) { return cui__w(app)->hwnd; }

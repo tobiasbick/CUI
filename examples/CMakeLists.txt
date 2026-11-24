@@ -8,7 +8,7 @@ function(cui_example name)
 endfunction()
 
 cui_example(hello hello.c)
-cui_example(gallery gallery.c gallery_ui.c gallery_more.c)
+cui_example(gallery gallery.c gallery_ui.c gallery_more.c gallery_app_window.c)
 cui_example(dashboard dashboard.c)
 cui_example(settings settings.c)
 cui_example(notes notes.c)

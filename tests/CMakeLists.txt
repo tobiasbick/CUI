@@ -76,6 +76,20 @@ if(CUI_WITH_APP)
     add_test(NAME cui_test_window_state COMMAND cui_test_window_state)
 
     if(CUI_BACKEND STREQUAL "win32")
+        add_executable(cui_test_gallery_window test_gallery_window.c ../examples/gallery_ui.c
+            ../examples/gallery_more.c ../examples/gallery_app_window.c)
+        target_link_libraries(cui_test_gallery_window PRIVATE cui::cui)
+        add_test(NAME cui_test_gallery_window COMMAND cui_test_gallery_window)
+        set_tests_properties(cui_test_gallery_window PROPERTIES TIMEOUT 45)
+
+        add_executable(cui_test_title_bar_win32 test_title_bar_win32.c)
+        target_link_libraries(cui_test_title_bar_win32 PRIVATE cui::cui)
+        add_test(NAME cui_test_title_bar_win32 COMMAND cui_test_title_bar_win32)
+        add_test(NAME cui_test_title_bar_win32_scaled COMMAND cui_test_title_bar_win32)
+        set_tests_properties(cui_test_title_bar_win32 PROPERTIES ENVIRONMENT "CUI_SCALE=1")
+        set_tests_properties(cui_test_title_bar_win32_scaled PROPERTIES ENVIRONMENT "CUI_SCALE=1.5;CUI_RENDERER=software")
+        set_tests_properties(cui_test_title_bar_win32 cui_test_title_bar_win32_scaled PROPERTIES TIMEOUT 30)
+
         add_executable(cui_test_save_directory test_save_directory.c)
         target_link_libraries(cui_test_save_directory PRIVATE cui::cui advapi32)
         add_test(NAME cui_test_save_directory COMMAND cui_test_save_directory)

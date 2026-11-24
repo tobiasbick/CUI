@@ -4928,12 +4928,13 @@ static void test_dock(void) {
     cui_destroy(ui);
 }
 
-typedef struct { float width, ratio; } split_range_case;
+typedef struct { float width, ratio; bool fixed; } split_range_case;
 
 /** A horizontal split containing two measurable panes. */
 static void build_split_range(cui_ctx *ui, void *user) {
     split_range_case *split = user;
-    cui_split(ui, "short split", &split->ratio, .width = CUI_PX(split->width), .height = CUI_PX(120)) {
+    cui_split(ui, "short split", &split->ratio, .width = CUI_PX(split->width), .height = CUI_PX(120),
+              .fixed_first = split->fixed) {
         cui_box(ui, .id = "first pane", .width = CUI_FILL, .height = CUI_FILL) {}
         cui_split_next(ui);
         cui_box(ui, .id = "second pane", .width = CUI_FILL, .height = CUI_FILL) {}
@@ -4956,6 +4957,23 @@ static void test_split_minimums(void) {
     first = rect_of(ui, cui_make_id(ui, "first pane"));
     drag(ui, build_split_range, &split, first.x + first.w, first.y + 50, 245, 4);
     CHECK(split.ratio > 0.6f && split.ratio < 0.7f);
+
+    /* The gallery sidebar stores the dragged width in points. Narrowing the
+     * window temporarily makes room for the other pane; widening restores it. */
+    split = (split_range_case){ 500, 200, true };
+    run(ui, build_split_range, &split, 4);
+    cui_id pane = cui_make_id(ui, "first pane");
+    first = rect_of(ui, pane);
+    CHECK(first.w == 200);
+    drag(ui, build_split_range, &split, first.x + first.w, first.y + 50, 260, 4);
+    float dragged = rect_of(ui, pane).w;
+    CHECK(dragged >= 258 && dragged <= 262);
+    split.width = 300;
+    run(ui, build_split_range, &split, 4);
+    CHECK(rect_of(ui, pane).w == 179);
+    split.width = 520;
+    run(ui, build_split_range, &split, 4);
+    CHECK(rect_of(ui, pane).w == dragged);
     cui_destroy(ui);
 }
 
