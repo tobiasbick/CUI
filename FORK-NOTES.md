@@ -1,7 +1,7 @@
 # Fork notes: `codex/cui-titlebar-testing`
 
-Open problems and untested parts of this branch. It is not proposed upstream.
-Before a proposal, split it into the title bar and the two general fixes below.
+This branch adds a custom title bar to CUI. The X11 OpenGL idle fix and the
+animation step after an idle wait both come from upstream `master`.
 
 ## What the branch holds
 
@@ -15,14 +15,8 @@ Before a proposal, split it into the title bar and the two general fixes below.
   effect. Platform layers use
   `cui_platform_iface.window_frame` and `.window_button` together with
   `cui_title_bar_hit_test`.
-- **X11 OpenGL idle** (`6ddb1ef`): an idle window presented continuously,
-  because Mesa's Present events woke `cui__plat_wait` without an event for the
-  app. Idle now costs 0 CPU.
-- **Transitions after a rest** (`b019f9e`, `762fbb9`): a hover fade or spring
-  that started on the first frame after an idle wait finished in that one frame.
-  `ui->step` now caps that first step; `dt` and the clock keep the real time.
 
-## Verified
+## Verification before the upstream merge
 
 - Windows 11, OpenGL and software: window buttons, Snap layouts, dragging,
   double click, edge resizing, dark mode, the inactive look, `--system-frame`,
