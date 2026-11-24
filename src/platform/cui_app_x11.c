@@ -90,8 +90,9 @@ typedef struct {
     char *clip_read;
     bool mapped;
     cui__x11_title_bar title_bar;   /* desc.custom_title_bar */
-    bool refit;                     /* the frame came back: put the content where it was once it is known */
-    int refit_x, refit_y;
+    bool refit;                     /* the remap lost the normal content rectangle */
+    bool refit_wait_map;
+    unsigned long refit_map_serial;
     /* X11 keeps no normal size and place for a maximized window: noted while it is normal */
     int normal_x, normal_y, normal_w, normal_h;   /* content origin on the root window, size in pixels */
     bool normal_pos_known;
@@ -786,15 +787,17 @@ static void cui__x11_event(cui_app *app, XEvent *ev) {
     float s = x->scale;
     switch (ev->type) {
     case MapNotify:
+        if (x->refit_wait_map && ev->xmap.serial >= x->refit_map_serial) {
+            x->refit_wait_map = false;
+            x->geometry_changed = true;
+        }
+        cui__x11_title_bar_event(&x->title_bar, app, ev);
+        break;
     case ReparentNotify:
     case PropertyNotify:
+        if (x->refit && ev->type == PropertyNotify && ev->xproperty.atom == x->net_wm_state)
+            x->geometry_changed = true;
         cui__x11_title_bar_event(&x->title_bar, app, ev);
-        /* KWin lays the new frame around the old top edge, half above it: with the frame's
-         * size known, the content goes back to its place (static gravity names the content) */
-        if (x->refit && ev->xproperty.atom == x->title_bar.frame_extents) {
-            x->refit = false;
-            XMoveWindow(x->dpy, x->win, x->refit_x, x->refit_y);
-        }
         break;
     case ClientMessage:
         if (cui__x11_xdnd_message(app, &ev->xclient)) break;
@@ -919,6 +922,18 @@ void cui__plat_wait(cui_app *app, double timeout) {
         XNextEvent(x->dpy, &ev);
         cui__x11_event(app, &ev);
     }
+    /* A decoration change can trigger fresh placement and discard the window manager's
+     * restore bounds. Wait for the new frame, and if maximized, wait for normal state.
+     * This also handles restore initiated by the window manager's own controls. */
+    if (x->refit && x->geometry_changed) {
+        if (!x->refit_wait_map && cui__plat_window_state(app) == CUI_WINDOW_NORMAL) {
+            x->refit = false;
+            XMoveResizeWindow(x->dpy, x->win, x->normal_x, x->normal_y,
+                              (unsigned)x->normal_w, (unsigned)x->normal_h);
+            XFlush(x->dpy);
+        }
+        x->geometry_changed = false;
+    }
     /* after the whole batch, which also carries a state change that came with the move */
     if (x->geometry_changed) {
         x->geometry_changed = false;
@@ -1029,40 +1044,50 @@ static bool cui__x11_withdrawn(cui__x11 *x) {
 /* Window managers read the Motif hints when they take a window on, KWin among them, so a
  * changed hint takes effect once the window is withdrawn and mapped again. The content keeps
  * its place, and a maximized window stays maximized. */
-static void cui__x11_remap(cui_app *app) {
+static void cui__x11_remap(cui_app *app, bool maximized) {
     cui__x11 *x = cui__x(app);
     if (!x->mapped) return;
-    bool maximized = cui__plat_window_state(app) == CUI_WINDOW_MAXIMIZED;
-    int px, py;
-    cui__x11_content_origin(x, &px, &py);
     XWithdrawWindow(x->dpy, x->win, x->screen);
     XSync(x->dpy, False);
     for (int i = 0; i < 100 && !cui__x11_withdrawn(x); i++) {   /* at most half a second */
         struct timespec ts = { 0, 5000000 };
         nanosleep(&ts, NULL);
     }
-    XMoveWindow(x->dpy, x->win, x->normal_pos_known ? x->normal_x : px, x->normal_pos_known ? x->normal_y : py);
+    if (x->normal_pos_known) {
+        XMoveResizeWindow(x->dpy, x->win, x->normal_x, x->normal_y,
+                          (unsigned)x->normal_w, (unsigned)x->normal_h);
+        x->refit = x->refit_wait_map = true;
+    }
     if (maximized) {
         Atom state[2] = { x->net_wm_maximized_horz, x->net_wm_maximized_vert };
         XChangeProperty(x->dpy, x->win, x->net_wm_state, XA_ATOM, 32, PropModeReplace, (unsigned char *)state, 2);
     }
+    /* An older MapNotify may still be queued when the app toggles the bar again. */
+    if (x->refit_wait_map) x->refit_map_serial = NextRequest(x->dpy);
     XMapWindow(x->dpy, x->win);
     XFlush(x->dpy);
 }
 
 void cui__plat_set_custom_title_bar(cui_app *app, bool on) {
     cui__x11 *x = cui__x(app);
+    cui_window_state state = cui__plat_window_state(app);
+    if (x->mapped && !x->refit && state == CUI_WINDOW_NORMAL) {
+        XWindowAttributes attrs;
+        if (XGetWindowAttributes(x->dpy, x->win, &attrs)) {
+            cui__x11_content_origin(x, &x->normal_x, &x->normal_y);
+            x->normal_pos_known = true;
+            x->normal_w = attrs.width;
+            x->normal_h = attrs.height;
+        }
+    }
     if (!on) {
         cui__x11_title_bar_drop(&x->title_bar, app);
-        x->refit = x->mapped && cui__plat_window_state(app) == CUI_WINDOW_NORMAL;
-        if (x->refit) cui__x11_content_origin(x, &x->refit_x, &x->refit_y);
     } else {
-        x->refit = false;
         /* asks again from scratch; the MapNotify of the remap runs the frame check */
         cui__x11_title_bar_release(&x->title_bar);
         if (!cui__x11_title_bar_request(&x->title_bar, x->dpy, x->win, x->screen, !app->desc.fixed_size)) return;
     }
-    cui__x11_remap(app);
+    cui__x11_remap(app, state == CUI_WINDOW_MAXIMIZED);
 }
 
 cui_window_state cui__plat_window_state(cui_app *app) {

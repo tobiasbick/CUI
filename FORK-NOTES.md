@@ -30,6 +30,27 @@ It also switches between both sidebar layouts, drags the divider and checks
 that hiding and reopening the sidebar preserves its width.
 Both run as part of CTest on the native Win32 backend.
 
+## KWin X11 verification after the sidebar layout change
+
+On Debian with KDE Plasma and KWin 6.7.4 in a native X11 session, switching
+from the KWin title bar back to the app title bar moved a normal window.
+Switching either way while maximized kept the window maximized but lost
+its previous position and size on restore. The X11 backend now saves the
+normal content rectangle across the remap. It applies that rectangle after
+the window is mapped and in the normal state, including when the user
+restores it with KWin's controls.
+
+The corrected build kept the content rectangle in both switch directions
+at 100% UI scale with OpenGL and the CUI software renderer. Maximizing,
+restoring and minimizing worked with both title bars. Both sidebar layouts
+passed the divider and window drag checks at 100%, 125% and 150% with both
+renderers. At 100%, hiding and showing the sidebar and switching layouts
+preserved its width. The navigation drawer opened at 740 layout points,
+and the sidebar returned to its saved width when the window grew.
+
+The full Release CTest suites passed in the KWin session with text shaping
+off (29/29) and on (30/30), including the X11 idle test.
+
 ## Verification before the upstream merge
 
 - Windows 11, OpenGL and software: window buttons, Snap layouts, dragging,
