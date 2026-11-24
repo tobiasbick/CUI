@@ -1,111 +1,72 @@
-# Fork notes: `codex/cui-titlebar-testing`
+# Fork notes for `codex/cui-titlebar-testing`
 
-This branch adds a custom title bar to CUI. The X11 OpenGL idle fix and the
-animation step after an idle wait both come from upstream `master`.
-
-## What the branch holds
-
-- **Title bar**: `cui_title_bar` and `cui_app_desc.custom_title_bar` on Win32
-  and X11, including XWayland. A sidebar can reach up into the title bar
-  with a segment of its own (`.no_window_buttons`), and
-  `cui_app_set_custom_title_bar` switches it at run time. The gallery draws its
-  own title bar, and its Window page switches it and shows and changes the
-  window's state. By default the sidebar reaches the top of the window.
-  Turn on **Start sidebar below the title bar** to put a single title bar
-  above both columns. [Screenshots of both layouts](docs/apps.md#your-own-title-bar).
-  `cui_split` takes `.fixed_first` for a sidebar that keeps
-  its width; the gallery's page list uses it while its own title bar is in
-  effect. Platform layers use
-  `cui_platform_iface.window_frame` and `.window_button` together with
-  `cui_title_bar_hit_test`.
-
-## Automated Windows coverage
-
-The [Win32 frame test](tests/test_title_bar_win32.c) checks hit testing and
-window button input at 100% and 150% UI scale. It also checks the restored
-content rectangle when the frame is switched while maximized or minimized.
-The [gallery test](tests/test_gallery_window.c) opens the Window page through
-the sidebar and drives its frame switch, window controls and saved position.
-It also switches between both sidebar layouts, drags the divider and checks
-that hiding and reopening the sidebar preserves its width.
-Both run as part of CTest on the native Win32 backend.
-
-## KWin X11 verification after the sidebar layout change
-
-On Debian with KDE Plasma and KWin 6.7.4 in a native X11 session, switching
-from the KWin title bar back to the app title bar moved a normal window.
-Switching either way while maximized kept the window maximized but lost
-its previous position and size on restore. The X11 backend now saves the
-normal content rectangle across the remap. It applies that rectangle after
-the window is mapped and in the normal state, including when the user
-restores it with KWin's controls.
-
-The corrected build kept the content rectangle in both switch directions
-at 100% UI scale with OpenGL and the CUI software renderer. Maximizing,
-restoring and minimizing worked with both title bars. Both sidebar layouts
-passed the divider and window drag checks at 100%, 125% and 150% with both
-renderers. At 100%, hiding and showing the sidebar and switching layouts
-preserved its width. The navigation drawer opened at 740 layout points,
-and the sidebar returned to its saved width when the window grew.
-
-The full Release CTest suites passed in the KWin session with text shaping
-off (29/29) and on (30/30), including the X11 idle test.
-
-## Verification before the upstream merge
-
-- Windows 11, OpenGL and software: window buttons, Snap layouts, dragging,
-  double click, edge resizing, dark mode, the inactive look, `--system-frame`,
-  `--fixed-size`, the hover fade and idle CPU. All CTest tests pass. The split
-  title bar (sidebar segment): dragging and double click in both segments,
-  and hiding and showing the sidebar. The gallery's title bar and Window page:
-  switching the title bar off and on keeps the content in place, and the
-  Maximize and Restore buttons work. The page list's divider drags its width,
-  keeps it when the window grows and stops at its 180 pt minimum.
-- Debian, KDE KWin 6.7 X11, both renderers: the same interactions, a
-  120-launch startup check, the edge hairline and idle CPU. CTest 26/26.
-  The gallery's split title bar, divider and Window page buttons, and the
-  run-time switch: the window is withdrawn and mapped again so that KWin reads
-  the changed Motif hint, keeps its place and its maximized state, and blinks
-  for under 50 ms.
-- KDE KWin 6.7 Wayland through XWayland, both renderers: 40/40 launches with
-  window buttons and the hairline, and `--system-frame` without flashes.
-  CTest 26/26. Input at display scale 1.3 (OpenGL): double click in both
-  segments maximizes and restores, Minimize, Maximize, Restore and Close work,
-  Close turns red on hover, and the edges show the sizing cursors. By hand in
-  the gallery: moving the window from the bar's empty space (not over its
-  widgets), with the bar on and off; resizing at every edge and corner;
-  restore-on-drag; the run-time switch, also while maximized; the divider with
-  its 180 pt minimum; the panel button; and the Window page's controls and
-  readouts.
+The branch adds an app-drawn title bar on Win32 and X11, including XWayland.
+The gallery's **Window** page switches between app and system title bars at
+run time and shows the window state. The sidebar and its divider reach the
+top by default. **Start sidebar below the title bar** places a single bar
+above both columns. While the app title bar is active, the gallery uses
+`cui_split` with `.fixed_first` to keep the chosen sidebar width.
+[Title bar API and screenshots](docs/apps.md#your-own-title-bar).
 
 ## Open problems
 
-- **Emulated input cannot move windows under KWin Wayland.** KWin ignores
-  `_NET_WM_MOVERESIZE` from emulated input, also for its own title bar, so
-  moving and resizing there can only be tested by hand. One automated run lost
-  a Close click after minimizing and activating the window through client
-  messages; by hand it did not happen.
-- **`3e08e5f` not exercised.** It re-checks the frame on every
-  `ReparentNotify`, for window managers that map a window before reparenting
-  it. Every later KWin build ran it, but no window manager that reparents
-  late has been tried.
-- **SDL2 ignores fractional scaling on native Wayland.** At a display scale of
-  1.3 the window comes out at scale 1, so the interface is about 23% too
-  small, though sharp. GLFW scales correctly. The SDL2 backend probably needs
-  SDL's Wayland scaling hint or drawable-size handling. This is unrelated to
-  the title bar.
-- **No shadow on X11 and XWayland.** Without decorations, KWin draws neither a
-  border nor a shadow. The 1 px hairline marks the window's edge, but the
-  window looks flatter than decorated ones.
-- **DPI changes on Win32.** With the custom frame, `WM_DPICHANGED` still uses
-  the size Windows suggests, which scales the outer rectangle. The content
-  can drift by a few pixels after a move to a monitor with a different DPI.
-  Untested.
-- **Untested window managers and systems:** GNOME/Mutter (X11 and XWayland),
-  Xfwm, Openbox (the old prototype only), tiling window managers, and macOS.
-  macOS keeps the system title bar.
-- **KWin restore-on-drag.** Dragging a maximized window restores it, but KWin
-  places the pointer higher in the bar than where it was grabbed. That is
-  KWin's behavior for frameless windows; it is cosmetic.
-- **Close glyph.** Its antialiased diagonals look slightly heavier than the
-  1 px minimize and maximize lines, as on Windows itself.
+- **Native SDL2 Wayland fractional scaling.** Start the
+  `-DCUI_PLATFORM=wayland` gallery at 125% or 150% KWin display scaling with
+  `CUI_SCALE` unset. A 240-point sidebar should measure 300 px or 360 px,
+  respectively. It measured 240 px at both scales with OpenGL and software.
+- **XWayland caption drag at 125% and 150%.** Enable **Start sidebar below the
+  title bar** and drag the free app caption directly above the divider. The
+  window should move and keep its size. The KDE input portal moved it at 100%.
+  At 125% with OpenGL and 150% with software, the portal drag left the window
+  in place. The KWin system caption moved the window at 125% and snapped it
+  to maximized at 150%. A physical mouse check is still pending.
+
+## Verification on KDE
+
+Commit `6e64086` was tested on Debian with Plasma and KWin 6.7.4 in a Wayland
+session. Each backend ran in its own Release build. Both sidebar layouts
+were exercised with OpenGL and software at 100%, 125% and 150% KWin display
+scaling, with `CUI_SCALE` unset.
+
+| Backend | `CUI_TEXT_SHAPING=OFF` | `CUI_TEXT_SHAPING=ON` |
+| --- | ---: | ---: |
+| XWayland (`-DCUI_PLATFORM=x11`, including the X11 idle test) | 29/29 | 30/30 |
+| Native SDL2 Wayland (`-DCUI_PLATFORM=wayland`) | 28/28 | 29/29 |
+
+- **XWayland.** Both divider positions worked, and the sidebar kept its width
+  after hiding, switching layouts and widening the window again. At 100%,
+  setting the window to 740 layout points exposed the drawer menu. Caption
+  double-click, minimize and restore worked. Portal edge drags resized the
+  window with both title bars. Switching either way preserved the normal
+  content rectangle with both renderers, including after restoring through
+  KWin from a maximized window. While maximized, KWin reserved an extra 28 px
+  for its system title bar at 100%. For the app frame, KWin leaves the window
+  shadowless and CUI draws a 1 px edge.
+- **Native Wayland.** SDL reported the `wayland` video driver. KWin kept the
+  system title bar, and the Window page showed **Not available here** when the
+  app title bar was requested. Both layouts kept a fixed 240-point sidebar,
+  including after hiding and showing it. The navigation drawer opened at
+  740 layout points. The Window page reported the global position as
+  `unknown`.
+
+The same X11 geometry fix was verified separately in a native KWin 6.7.4
+X11 session at 100% with both renderers. The Release CTest suites passed
+29/29 with text shaping off and 30/30 with it on.
+
+## Windows coverage
+
+Win32 CTest covers title bar hit testing and window buttons at 100% and 150%,
+including the restored content rectangle when the frame is switched while
+maximized or minimized. The gallery test drives the Window page controls
+and checks divider dragging and sidebar width across layout and visibility
+changes. [Win32 frame test](tests/test_title_bar_win32.c) ·
+[Gallery Window test](tests/test_gallery_window.c).
+
+## Coverage still needed
+
+- Test an X11 window manager that maps before reparenting. The frame is
+  checked again on `ReparentNotify` (`3e08e5f`). Other window managers still
+  to cover include GNOME/Mutter, Xfwm, Openbox and tiling window managers.
+- Check Win32 content geometry when a custom-framed window moves between
+  monitors with different DPI. `WM_DPICHANGED` applies Windows' suggested
+  outer rectangle.
