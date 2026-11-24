@@ -10,7 +10,10 @@ animation step after an idle wait both come from upstream `master`.
   with a segment of its own (`.no_window_buttons`), and
   `cui_app_set_custom_title_bar` switches it at run time. The gallery draws its
   own title bar, and its Window page switches it and shows and changes the
-  window's state. `cui_split` takes `.fixed_first` for a sidebar that keeps
+  window's state. By default the sidebar reaches the top of the window.
+  Turn on **Start sidebar below the title bar** to put a single title bar
+  above both columns. [Screenshots of both layouts](docs/apps.md#your-own-title-bar).
+  `cui_split` takes `.fixed_first` for a sidebar that keeps
   its width; the gallery's page list uses it while its own title bar is in
   effect. Platform layers use
   `cui_platform_iface.window_frame` and `.window_button` together with
@@ -23,6 +26,8 @@ window button input at 100% and 150% UI scale. It also checks the restored
 content rectangle when the frame is switched while maximized or minimized.
 The [gallery test](tests/test_gallery_window.c) opens the Window page through
 the sidebar and drives its frame switch, window controls and saved position.
+It also switches between both sidebar layouts, drags the divider and checks
+that hiding and reopening the sidebar preserves its width.
 Both run as part of CTest on the native Win32 backend.
 
 ## Verification before the upstream merge

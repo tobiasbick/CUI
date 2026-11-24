@@ -2215,6 +2215,8 @@ cui_row(ui, .width = CUI_FILL, .height = CUI_FILL) {
 }
 ```
 
+To start the sidebar below the title bar, put one `cui_title_bar` at the top of a `cui_column`, then place the sidebar and content in a row or [split view](layout.md#split-views) beneath it. Keep the button that shows and hides the sidebar in the shared bar so it stays accessible in either state. The [gallery screenshots](apps.md#your-own-title-bar) show both layouts.
+
 With `cui_app_desc.custom_title_bar` the system's title bar goes on Windows, and on Linux under an X11 window manager that supports EWMH and drops its decorations on request, also through XWayland under KDE Plasma. Elsewhere (macOS, SDL2, GLFW, or without `custom_title_bar`) the system keeps its title bar and `cui_title_bar` is the same bar without the window buttons, so one layout serves both. A platform layer of your own reports the window through the optional `window_frame` and `window_button` hooks of `cui_platform_iface` and asks `cui_title_bar_hit_test` which points move the window.
 
 ### Menu bar
