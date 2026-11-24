@@ -24,6 +24,6 @@ bool gallery_more_title_bar(void);
 int gallery_more_count(void);
 const char *gallery_more_name(int page);
 const char *gallery_more_icon(int page);
-void gallery_more_page(cui_ctx *ui, int page);
+void gallery_more_page(cui_ctx *ui, int page, bool *sidebar_below_titlebar);
 
 #endif

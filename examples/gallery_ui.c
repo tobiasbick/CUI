@@ -68,25 +68,26 @@ static void paint_swatch(cui_ctx *ui, cui_rect r, void *user) {
     cui_draw_circle(ui, c, r.w / 2 - 4, d->color);
 }
 
-/* The panel button that hides and shows the page list: in the list's title bar segment while it
- * is open, in the main title bar while it is not. */
 static void sidebar_button(cui_ctx *ui, gallery *g) {
     if (cui_icon_button(ui, CUI_ICON_PANEL_LEFT, .size = CUI_SIZE_SM, .tooltip = g->sidebar_hidden ? "Show the pages" : "Hide the pages"))
         g->sidebar_hidden = !g->sidebar_hidden;
 }
 
+static void gallery_brand(cui_ctx *ui) {
+    cui_box(ui, .width = CUI_PX(24), .height = CUI_PX(24), .radius = 8, .bg = CUI_COLOR_FOREGROUND,
+            .dir = CUI_STACK, .align = CUI_ALIGN_CENTER, .justify = CUI_JUSTIFY_CENTER) {
+        cui_text(ui, "C", .font = CUI_FONT_DISPLAY, .size = 14, .color = CUI_COLOR_BACKGROUND, .line_height = 1.0f);
+    }
+    cui_text(ui, "CUI", .font = CUI_FONT_MEDIUM, .size = 15, .nowrap = true);
+    char ver[16];
+    snprintf(ver, sizeof ver, "v%d.%d", CUI_VERSION_MAJOR, CUI_VERSION_MINOR);
+    cui_badge(ui, ver, .size = CUI_SIZE_SM);
+}
+
 static void sidebar(cui_ctx *ui, gallery *g, bool drawer) {
     cui_column(ui, .width = CUI_FILL, .height = CUI_FILL, .bg = drawer ? CUI_TRANSPARENT : CUI_COLOR_SURFACE_MUTED) {
-        /* the page list reaches up into the title bar with a segment of its own */
-        if (!drawer) cui_title_bar(ui, "pages", .no_window_buttons = true, .no_border = true) {
-            cui_box(ui, .width = CUI_PX(24), .height = CUI_PX(24), .radius = 8, .bg = CUI_COLOR_FOREGROUND,
-                    .dir = CUI_STACK, .align = CUI_ALIGN_CENTER, .justify = CUI_JUSTIFY_CENTER) {
-                cui_text(ui, "C", .font = CUI_FONT_DISPLAY, .size = 14, .color = CUI_COLOR_BACKGROUND, .line_height = 1.0f);
-            }
-            cui_text(ui, "CUI", .font = CUI_FONT_MEDIUM, .size = 15, .nowrap = true);
-            char ver[16];
-            snprintf(ver, sizeof ver, "v%d.%d", CUI_VERSION_MAJOR, CUI_VERSION_MINOR);
-            cui_badge(ui, ver, .size = CUI_SIZE_SM);
+        if (!drawer && !g->sidebar_below_titlebar) cui_title_bar(ui, "pages", .no_window_buttons = true, .no_border = true) {
+            gallery_brand(ui);
             cui_spacer(ui);
             sidebar_button(ui, g);
         }
@@ -826,23 +827,29 @@ static void dialogs(cui_ctx *ui, gallery *g) {
     }
 }
 
-/* The main column: the title bar segment with the window buttons over the page. */
+static void gallery_title_bar(cui_ctx *ui, gallery *g, bool narrow, bool list) {
+    cui_title_bar(ui, "title", .title = list ? NULL : "CUI") {
+        if (narrow) {
+            if (cui_icon_button(ui, CUI_ICON_MENU, .size = CUI_SIZE_SM, .tooltip = "Components")) g->drawer = true;
+        } else if (!list || g->sidebar_below_titlebar) {
+            if (list) gallery_brand(ui);
+            sidebar_button(ui, g);
+        }
+        cui_spacer(ui);
+        if (cui_button(ui, "Search components", .icon = CUI_ICON_SEARCH, .shortcut = "Ctrl K", .size = CUI_SIZE_SM,
+                       .width = CUI_PX(narrow ? 200 : 280)))
+            g->palette_open = true;
+        cui_spacer(ui);
+        if (cui_icon_button(ui, g->dark ? CUI_ICON_SUN : CUI_ICON_MOON, .size = CUI_SIZE_SM, .tooltip = "Switch theme", .shortcut = "Ctrl J")) {
+            g->dark = !g->dark;
+            cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT);
+        }
+    }
+}
+
 static void main_area(cui_ctx *ui, gallery *g, bool narrow, bool list) {
     cui_column(ui, .width = CUI_FILL, .height = CUI_FILL) {
-        /* the main title bar segment: with the page list away, its name and button move here */
-        cui_title_bar(ui, "title", .title = list ? NULL : "CUI") {
-            if (narrow) { if (cui_icon_button(ui, CUI_ICON_MENU, .size = CUI_SIZE_SM, .tooltip = "Components")) g->drawer = true; }
-            else if (!list) sidebar_button(ui, g);
-            cui_spacer(ui);
-            if (cui_button(ui, "Search components", .icon = CUI_ICON_SEARCH, .shortcut = "Ctrl K", .size = CUI_SIZE_SM,
-                           .width = CUI_PX(narrow ? 200 : 280)))
-                g->palette_open = true;
-            cui_spacer(ui);
-            if (cui_icon_button(ui, g->dark ? CUI_ICON_SUN : CUI_ICON_MOON, .size = CUI_SIZE_SM, .tooltip = "Switch theme", .shortcut = "Ctrl J")) {
-                g->dark = !g->dark;
-                cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT);
-            }
-        }
+        if (!g->sidebar_below_titlebar) gallery_title_bar(ui, g, narrow, list);
         cui_scroll(ui, .id = "main", .width = CUI_FILL, .fade_edges = true) {
             cui_row(ui, .justify = CUI_JUSTIFY_CENTER, .align = CUI_ALIGN_START) {
                 cui_column(ui, .width = CUI_FILL, .max_width = 920, .pad_x = narrow ? 16 : 40, .pad_top = narrow ? 12 : 36, .pad_bottom = 64, .gap = 20) {
@@ -851,7 +858,7 @@ static void main_area(cui_ctx *ui, gallery *g, bool narrow, bool list) {
                             cui_heading(ui, g->page < PAGE_COUNT ? page_names[g->page] : gallery_more_name(g->page - PAGE_COUNT), 2);
                         }
                     }
-                    if (g->page >= PAGE_COUNT) gallery_more_page(ui, g->page - PAGE_COUNT);
+                    if (g->page >= PAGE_COUNT) gallery_more_page(ui, g->page - PAGE_COUNT, &g->sidebar_below_titlebar);
                     switch (g->page) {
                     case PAGE_OVERVIEW: page_overview(ui, g); break;
                     case PAGE_BUTTONS: page_buttons(ui, g); break;
@@ -869,16 +876,8 @@ static void main_area(cui_ctx *ui, gallery *g, bool narrow, bool list) {
     }
 }
 
-void gallery_frame(cui_ctx *ui, gallery *g) {
-    if (!cui_wants_keyboard(ui)) {
-        if (cui_shortcut(ui, CUI_MOD_PRIMARY, CUI_KEY_K)) g->palette_open = !g->palette_open;
-        if (cui_shortcut(ui, CUI_MOD_PRIMARY, CUI_KEY_J)) { g->dark = !g->dark; cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT); }
-    }
-    /* below 760 points the page list moves into a drawer behind a menu button */
-    bool narrow = cui_viewport_size(ui).x < 760;
-    if (!narrow) g->drawer = false;
-    bool list = !narrow && !g->sidebar_hidden;
-    cui_row(ui, .width = CUI_FILL, .height = CUI_FILL, .align = CUI_ALIGN_STRETCH, .bg = CUI_COLOR_BACKGROUND) {
+static void gallery_columns(cui_ctx *ui, gallery *g, bool narrow, bool list) {
+    cui_row(ui, .width = CUI_FILL, .height = CUI_FILL, .align = CUI_ALIGN_STRETCH) {
         if (list && gallery_more_title_bar()) {
             /* with the app's own title bar the page list keeps a width of its own, dragged at its edge */
             cui_split(ui, "pages-split", &g->sidebar_width, .fixed_first = true, .min_first = 180, .min_second = 420) {
@@ -893,6 +892,21 @@ void gallery_frame(cui_ctx *ui, gallery *g) {
             }
             main_area(ui, g, narrow, list);
         }
+    }
+}
+
+void gallery_frame(cui_ctx *ui, gallery *g) {
+    if (!cui_wants_keyboard(ui)) {
+        if (cui_shortcut(ui, CUI_MOD_PRIMARY, CUI_KEY_K)) g->palette_open = !g->palette_open;
+        if (cui_shortcut(ui, CUI_MOD_PRIMARY, CUI_KEY_J)) { g->dark = !g->dark; cui_set_theme(ui, g->dark ? CUI_THEME_DARK : CUI_THEME_LIGHT); }
+    }
+    /* below 760 points the page list moves into a drawer behind a menu button */
+    bool narrow = cui_viewport_size(ui).x < 760;
+    if (!narrow) g->drawer = false;
+    bool list = !narrow && !g->sidebar_hidden;
+    cui_column(ui, .width = CUI_FILL, .height = CUI_FILL, .bg = CUI_COLOR_BACKGROUND) {
+        if (g->sidebar_below_titlebar) gallery_title_bar(ui, g, narrow, list);
+        gallery_columns(ui, g, narrow, list);
     }
     cui_sheet(ui, "CUI", &g->drawer, .side = CUI_SIDE_LEFT, .size = 280) { sidebar(ui, g, true); }
     dialogs(ui, g);

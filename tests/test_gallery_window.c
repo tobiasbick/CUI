@@ -1,6 +1,6 @@
 /* [Documentation](../docs/apps.md#your-own-title-bar)
  * Drive the gallery's Window page and check what the page reports against
- * the native window. An optional output path saves the page for inspection. */
+ * the native window. Optional output paths save the default and shared title bars. */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "../examples/gallery_ui.h"
@@ -62,8 +62,23 @@ static bool screenshot(const char *path) {
 
 #define EXPECT(test) do { if (!(test)) { fprintf(stderr, "line %d: %s\n", __LINE__, #test); return false; } } while (0)
 
-static bool exercise(const char *image) {
+static void drag_divider(float x, float y, float dx) {
+    cui_input_mouse_move(ui, x, y);
+    draw();
+    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, true);
+    draw();
+    cui_input_mouse_move(ui, x + dx, y);
+    draw();
+    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, false);
+    draw();
+    draw();
+}
+
+static cui_rect gallery_rect(const char *id) { return cui_get_rect(ui, cui_make_id(ui, id)); }
+
+static bool exercise(const char *image, const char *shared_image) {
     const char *toggle = "Draw the title bar in the app";
+    const char *below = "Start sidebar below the title bar";
     cui_set_reduced_motion(ui, true);
     for (int i = 0; i < 4; i++) draw();
     /* Window is in the Extended section, below the initial scroll position. */
@@ -73,18 +88,41 @@ static bool exercise(const char *image) {
     EXPECT(click("Window"));
     EXPECT(strcmp(gallery_page_name(g.page), "Window") == 0);
     EXPECT(locate("In effect", NULL) && locate("Normal", NULL));
+    cui_rect left = gallery_rect("pages"), title = gallery_rect("title");
+    EXPECT(left.x == 0 && left.y == 0 && left.w > 0 && left.h == title.h && title.h > 0);
+    EXPECT(title.y == 0 && title.x >= left.w && gallery_rect("pages-split").y == 0);
+    EXPECT(cui_title_bar_hit_test(ui, left.w, title.h / 2) == CUI_TITLE_BAR_NONE);
     if (image) EXPECT(screenshot(image));
 
+    float sidebar_width = left.w;
+    EXPECT(click(below));
+    title = gallery_rect("title");
+    EXPECT(title.x == 0 && title.y == 0 && title.w == cui_viewport_size(ui).x);
+    EXPECT(gallery_rect("pages-split").y == title.h && title.h > 0);
+    EXPECT(cui_title_bar_hit_test(ui, sidebar_width, title.h / 2) == CUI_TITLE_BAR_CAPTION);
+    if (shared_image) EXPECT(screenshot(shared_image));
+    float page_x = gallery_rect("main").x;
+    drag_divider(sidebar_width, title.h + 80, 30);
+    EXPECT(gallery_rect("main").x > page_x + 25);
+    page_x = gallery_rect("main").x;
+    EXPECT(click(CUI_ICON_PANEL_LEFT) && gallery_rect("main").x == 0);
+    EXPECT(click(CUI_ICON_PANEL_LEFT) && gallery_rect("main").x == page_x);
+    cui_vec2 wide = cui_app_size(app);
+    cui_app_set_size(app, 700, (int)wide.y);
+    draw();
+    EXPECT(click(CUI_ICON_MENU) && g.drawer);
+    cui_app_set_size(app, (int)wide.x, (int)wide.y);
+    draw();
+    draw();
+    EXPECT(!g.drawer && gallery_rect("main").x == page_x);
+    EXPECT(click(below));
+    left = gallery_rect("pages");
+    EXPECT(left.y == 0 && left.w > sidebar_width + 25 && gallery_rect("title").x == page_x);
+    EXPECT(gallery_rect("pages-split").y == 0);
+    EXPECT(cui_title_bar_hit_test(ui, left.w, left.h / 2) == CUI_TITLE_BAR_NONE);
     cui_vec2 panel_before, panel_after;
     EXPECT(locate(CUI_ICON_PANEL_LEFT, &panel_before));
-    cui_input_mouse_move(ui, g.sidebar_width, 120);
-    draw();
-    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, true);
-    draw();
-    cui_input_mouse_move(ui, g.sidebar_width + 55, 120);
-    draw();
-    cui_input_mouse_button(ui, CUI_MOUSE_LEFT, false);
-    draw();
+    drag_divider(left.w, left.h / 2, 55);
     EXPECT(locate(CUI_ICON_PANEL_LEFT, &panel_after) && panel_after.x > panel_before.x + 45);
     EXPECT(click(CUI_ICON_PANEL_LEFT) && g.sidebar_hidden);
     EXPECT(click(CUI_ICON_PANEL_LEFT) && !g.sidebar_hidden);
@@ -92,10 +130,13 @@ static bool exercise(const char *image) {
     EXPECT(click(CUI_ICON_SUN) && !g.dark && cui_get_theme_mode(ui) == CUI_THEME_LIGHT);
     EXPECT(click(toggle) && !cui_app_custom_title_bar(app));
     EXPECT(locate("System title bar", NULL));
+    EXPECT(gallery_rect("title").x > 0);
+    EXPECT(click(below) && gallery_rect("title").w == cui_viewport_size(ui).x);
     EXPECT(click("Maximize") && IsZoomed(hwnd));
     EXPECT(locate("Maximized", NULL));
     EXPECT(click(toggle) && cui_app_custom_title_bar(app) && IsZoomed(hwnd));
     EXPECT(locate("In effect", NULL));
+    EXPECT(gallery_rect("pages-split").y == gallery_rect("title").h);
     EXPECT(click("Restore") && !IsZoomed(hwnd) && locate("Normal", NULL));
 
     POINT saved = {0};
@@ -122,7 +163,7 @@ int main(int argc, char **argv) {
     hwnd = cui_app_native_window(app);
     gallery_init(&g);
     gallery_more_set_window(&gallery_app_window);
-    bool ok = exercise(argc > 1 ? argv[1] : NULL);
+    bool ok = exercise(argc > 1 ? argv[1] : NULL, argc > 2 ? argv[2] : NULL);
     cui_app_destroy(app);
     return ok ? 0 : 1;
 }

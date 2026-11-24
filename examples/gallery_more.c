@@ -2082,16 +2082,14 @@ static const gallery_window *window_api;
 void gallery_more_set_window(const gallery_window *window) { window_api = window; }
 bool gallery_more_title_bar(void) { return window_api && window_api->title_bar(); }
 
-static void page_window(cui_ctx *ui) {
+static void page_window(cui_ctx *ui, bool *sidebar_below_titlebar) {
     const gallery_window *w = window_api;
     if (!w) {
         cui_secondary(ui, "The window controls need a window of the gallery's own: run the gallery app.");
         return;
     }
     static bool want = true;   /* the gallery app opens with its own title bar */
-    section(ui, "Title bar", "Drawn by the app, the title bar is a cui_title_bar in each column: the sidebar reaches up into it "
-                             "and the window buttons are CUI's. Turned off, the system's title bar comes back and the same bars "
-                             "stay, without window buttons.");
+    section(ui, "Title bar", NULL);
     cui_card(ui, .pad = 16, .gap = 12, .width = CUI_FILL) {
         cui_row(ui, .gap = 12, .width = CUI_FILL) {
             if (cui_switch(ui, "Draw the title bar in the app", &want)) w->set_title_bar(want);
@@ -2101,6 +2099,7 @@ static void page_window(cui_ctx *ui) {
             else if (want) cui_status_tag(ui, "Not available here", CUI_TAG_CUSTOM, .icon = CUI_ICON_MONITOR, .tone = CUI_TONE_WARNING);
             else cui_status_tag(ui, "System title bar", CUI_TAG_CUSTOM, .icon = CUI_ICON_MONITOR);
         }
+        cui_switch(ui, "Start sidebar below the title bar", sidebar_below_titlebar);
     }
 
     static const char *const states[] = { "Normal", "Maximized", "Minimized" };
@@ -2163,15 +2162,16 @@ static const more_page pages[] = {
     { "Creative controls", CUI_ICON_PALETTE, page_creative },
     { "Canvas and bars", CUI_ICON_LAYERS, page_canvas },
     { "Voice", CUI_ICON_MIC, page_voice },
-    { "Window", CUI_ICON_MONITOR, page_window },
+    { "Window", CUI_ICON_MONITOR, NULL },   /* uses the gallery's layout setting */
 };
 
 int gallery_more_count(void) { return (int)(sizeof pages / sizeof pages[0]); }
 const char *gallery_more_name(int page) { return page >= 0 && page < gallery_more_count() ? pages[page].name : ""; }
 const char *gallery_more_icon(int page) { return page >= 0 && page < gallery_more_count() ? pages[page].icon : NULL; }
-void gallery_more_page(cui_ctx *ui, int page) {
+void gallery_more_page(cui_ctx *ui, int page, bool *sidebar_below_titlebar) {
     if (page < 0 || page >= gallery_more_count()) return;
     cui_push_id(ui, pages[page].name);   /* ids on different pages never meet */
-    pages[page].fn(ui);
+    if (pages[page].fn) pages[page].fn(ui);
+    else page_window(ui, sidebar_below_titlebar);
     cui_pop_id(ui);
 }

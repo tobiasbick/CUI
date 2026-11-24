@@ -12,6 +12,7 @@ enum {
 typedef struct gallery {
     int page;
     bool sidebar_hidden;       /* the panel button in the title bar hid the page list */
+    bool sidebar_below_titlebar; /* one title bar spans both columns */
     float sidebar_width;       /* the page list's width in points, dragged at its edge with the app's title bar */
     /* buttons */
     bool loading;

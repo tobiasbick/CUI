@@ -94,6 +94,12 @@ With `.custom_title_bar = true` the system's title bar goes and the app draws on
 
 On Windows the switch also preserves the normal content rectangle when the window is maximized or minimized. The [gallery window actions](../examples/gallery_app_window.c) connect the Window page to the running app. The [gallery test](../tests/test_gallery_window.c) operates the controls on that page, and the [Win32 frame test](../tests/test_title_bar_win32.c) exercises the caption and window buttons.
 
+The gallery starts with a title bar segment in each column. On the **Window** page, turn on **Start sidebar below the title bar** to place one bar above both columns. The sidebar and its divider then start at the bottom of the bar. The sidebar keeps its width when you switch layouts.
+
+| Default | Start sidebar below the title bar |
+| --- | --- |
+| ![The sidebar and its divider extend to the top of the window.](images/gallery-sidebar-full-height.png) | ![A single title bar spans the window above the sidebar and its divider.](images/gallery-sidebar-below-title-bar.png) |
+
 ```c
 static bool own = true;
 if (cui_switch(ui, "Draw the title bar in the app", &own)) cui_app_set_custom_title_bar(NULL, own);
