@@ -142,6 +142,8 @@ cui_app *cui_app_create(const cui_app_desc *desc) {
     if (ui->platform.set_cursor) pi.set_cursor = ui->platform.set_cursor;
     if (ui->platform.set_text_input_rect) pi.set_text_input_rect = ui->platform.set_text_input_rect;
     if (ui->platform.draw_emoji) pi.draw_emoji = ui->platform.draw_emoji;
+    if (ui->platform.window_frame) pi.window_frame = ui->platform.window_frame;
+    if (ui->platform.window_button) pi.window_button = ui->platform.window_button;
     cui_set_platform(ui, &pi);
     app->running = true;
     app->last_time = cui__plat_now();
