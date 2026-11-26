@@ -685,6 +685,7 @@ struct cui_ctx {
         struct cui_grid_build *grid;
         void *carousel;
         void *status_bar;          /* its width budget */
+        void *title_bar;           /* the window's frame and whether it has window buttons */
         void *card_stack;
         void *kanban;
         void *dock;
