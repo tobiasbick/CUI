@@ -714,6 +714,11 @@ static inline float cui__fs(cui_ctx *ui, float size) { return size * ui->theme.f
 static inline cui_color cui__emphasis(cui_ctx *ui) {
     return ui->accent == CUI_ACCENT_NEUTRAL ? CUI_C(ui, FOREGROUND) : CUI_C(ui, ACCENT);
 }
+/* text and glyphs on a fill of the danger color: white, or nearly black on the lighter red of
+ * the dark theme */
+static inline cui_color cui__on_danger(cui_ctx *ui) {
+    return ui->mode == CUI_THEME_DARK ? cui__rgba(26, 10, 12, 255) : cui__rgba(255, 255, 255, 255);
+}
 
 /* ---- user-facing text (cui_strings.c): the app's table (cui_set_strings) or English ---- */
 const char *cui__month_name(cui_ctx *ui, int m);      /* m 0..11, January first */
