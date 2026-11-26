@@ -69,7 +69,7 @@ static void frame(cui_ctx *ui, void *user) {
 }
 
 int main(int argc, char **argv) {
-    cui_app_desc desc = { .title = "Title bar", .width = 960, .height = 520, .custom_title_bar = true };
+    cui_app_desc desc = { .title = "Title bar", .width = 960, .height = 520, .min_width = 640, .custom_title_bar = true };
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--system-frame") == 0) desc.custom_title_bar = false;
         if (strcmp(argv[i], "--fixed-size") == 0) desc.fixed_size = true;

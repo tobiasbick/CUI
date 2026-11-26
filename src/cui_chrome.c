@@ -1005,11 +1005,12 @@ static void cui__paint_window_glyph(cui_ctx *ui, cui_node *n, void *data) {
     }
 }
 
-/* One window button: as high as the bar and no focus stop, as on the system's title bar; close
- * turns red under the pointer. Returns true when clicked. */
+/* One window button: as high as the bar, no focus stop, and a click leaves the focus where it
+ * was, as on the system's title bar; close turns red under the pointer. Returns true when
+ * clicked. */
 static bool cui__window_button(cui_ctx *ui, const char *id_str, cui_window_button kind, bool dim) {
     cui_id id = cui_make_id(ui, id_str);
-    cui_interact r = cui__interact(ui, id, 0);
+    cui_interact r = cui__interact(ui, id, CUI_IF_KEEP_FOCUS);
     float *hover = cui_state(ui, id, sizeof *hover);
     cui__tween(ui, hover, r.hovered || r.pressed ? 1.0f : 0.0f, CUI__T_HOVER);
     bool close = kind == CUI_WINDOW_BUTTON_CLOSE;
@@ -1061,7 +1062,8 @@ void cui_title_bar_begin(cui_ctx *ui, const char *id_str, const cui_title_bar_op
     cui__open(ui, bar);
     cui_push_id(ui, id_str);
 
-    /* the app's part, which the window buttons follow */
+    /* the app's part, which the window buttons follow: when the bar is narrow it shrinks below its
+     * content and clips it, so the window buttons stay in the window */
     int row = cui__node_new(ui, 0);
     cui_node *n = &ui->nodes[row];
     n->dir = CUI_ROW;
@@ -1070,7 +1072,7 @@ void cui_title_bar_begin(cui_ctx *ui, const char *id_str, const cui_title_bar_op
     n->pad[1] = n->pad[3] = 8;
     n->w = CUI_FILL;
     n->self_align = CUI_ALIGN_STRETCH;
-    n->flags |= CUI_NF_CLIP;
+    n->flags |= CUI_NF_CLIP | CUI_NF_ADAPTIVE;   /* min_w 0: no minimum of its own */
     cui__open(ui, row);
     if (o->icon) cui__icon_node(ui, o->icon, 16, b->dim ? CUI_C(ui, TEXT_MUTED) : CUI_C(ui, ACCENT));
     if (o->title) {

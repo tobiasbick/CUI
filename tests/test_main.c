@@ -4768,6 +4768,16 @@ static void build_tbar(cui_ctx *ui, void *u) {
 }
 static void build_nothing(cui_ctx *ui, void *u) { (void)ui; (void)u; }
 
+/* A bar narrower than the app's controls in it. */
+static void build_tbar_narrow(cui_ctx *ui, void *u) {
+    float *width = u;
+    cui_column(ui, .width = CUI_PX(*width), .height = CUI_FILL) {
+        cui_title_bar(ui, "main", .title = "Notes") {
+            cui_box(ui, .id = "wide", .width = CUI_PX(300), .height = CUI_PX(24)) {}
+        }
+    }
+}
+
 static cui_ctx *tbar_ctx_new(tbar_ctx *t) {
     cui_ctx *ui = new_ctx();
     cui_set_platform(ui, &(cui_platform_iface){ .user = t, .set_clipboard = clip_set, .get_clipboard = clip_get,
@@ -4829,10 +4839,10 @@ static void test_title_bar(void) {
     CHECK(t.pressed[CUI_WINDOW_BUTTON_RESTORE] == 1 && t.pressed[CUI_WINDOW_BUTTON_CLOSE] == 1);
     CHECK(t.pressed[CUI_WINDOW_BUTTON_MAXIMIZE] == 1);
 
-    /* Tab reaches the controls, never the window buttons */
-    cui_input_mouse_move(ui, 400, 400);
-    key(ui, build_tbar, &t, CUI_KEY_TAB, 0);
+    /* the window buttons leave the focus where it was (the control pressed above), and Tab
+     * reaches the controls, never the window buttons */
     CHECK(cui_focused_id(ui) == t.tool_id);
+    cui_input_mouse_move(ui, 400, 400);
     key(ui, build_tbar, &t, CUI_KEY_TAB, 0);
     CHECK(cui_focused_id(ui) == t.body_id);
     key(ui, build_tbar, &t, CUI_KEY_TAB, 0);
@@ -4848,9 +4858,19 @@ static void test_title_bar(void) {
     run(ui, build_nothing, &t, 1);
     CHECK(cui_title_bar_hit_test(ui, gap_x, cy) == CUI_TITLE_BAR_NONE);
 
+    /* narrower than its controls, the bar clips them and keeps the window buttons inside */
+    float narrow = 300;
+    run(ui, build_tbar_narrow, &narrow, 3);
+    bar = rect_of(ui, cui_make_id(ui, "main"));
+    cl = rect_of(ui, scoped_id(ui, "main", "#close"));
+    mn = rect_of(ui, scoped_id(ui, "main", "#minimize"));
+    CHECK(bar.w == 300 && cl.x + cl.w == bar.x + bar.w && mn.x == bar.x + bar.w - 3 * 46);
+    CHECK(cui_title_bar_hit_test(ui, center(cl).x, cy) == CUI_TITLE_BAR_NONE);
+
     /* a fixed-size window has no maximize button */
     t.resizable = false;
     run(ui, build_tbar, &t, 3);
+    bar = rect_of(ui, cui_make_id(ui, "main"));
     mn = rect_of(ui, scoped_id(ui, "main", "#minimize"));
     cl = rect_of(ui, scoped_id(ui, "main", "#close"));
     CHECK(mn.x + mn.w == cl.x && cl.x + cl.w == bar.x + bar.w);   /* minimize moved up beside close */
