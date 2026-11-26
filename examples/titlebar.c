@@ -15,6 +15,7 @@ typedef struct {
     char query[96];
     int page;
     bool sidebar;
+    bool own_frame;   /* the app's bars move the window: Windows with custom_title_bar */
 } app_state;
 
 static const char *const pages[] = { "Home", "Inbox", "Starred" };
@@ -61,8 +62,9 @@ static void frame(cui_ctx *ui, void *user) {
             }
             cui_column(ui, .pad = 24, .gap = 8) {
                 cui_text(ui, pages[d->page], .size = 22, .font = CUI_FONT_MEDIUM);
-                cui_text(ui, d->query[0] ? d->query : "Drag the empty part of either title bar segment to move the window.",
-                         .color = CUI_COLOR_TEXT_MUTED);
+                const char *hint = d->own_frame ? "Drag the empty part of either title bar segment to move the window."
+                                                : "The system draws the title bar here, and these bars show without window buttons.";
+                cui_text(ui, d->query[0] ? d->query : hint, .color = CUI_COLOR_TEXT_MUTED);
             }
         }
     }
@@ -78,5 +80,6 @@ int main(int argc, char **argv) {
     app_state d;
     memset(&d, 0, sizeof d);
     d.sidebar = true;
+    d.own_frame = desc.custom_title_bar && strcmp(cui_app_backend(NULL), "win32") == 0;
     return cui_app_run(&desc, frame, &d);
 }

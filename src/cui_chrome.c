@@ -963,7 +963,7 @@ void cui_status_bar_progress_ex(cui_ctx *ui, float value, const cui_status_progr
 
 #define CUI__TITLE_BAR_H 40.0f
 #define CUI__WINDOW_BUTTON_W 46.0f   /* as wide as the system's own on Windows */
-#define CUI__TITLE_BARS (int)(sizeof ((cui_ctx *)0)->title_bar.bars / sizeof (cui_id))
+#define CUI__TITLE_BARS (int)(sizeof ((cui__title_bar_list *)0)->bars / sizeof (cui_id))
 
 typedef struct { cui_window_frame frame; bool buttons, dim; } cui__title_bar_build;
 typedef struct { cui_window_button kind; cui_color c; } cui__window_glyph;
@@ -1032,15 +1032,17 @@ static bool cui__window_button(cui_ctx *ui, const char *id_str, cui_window_butto
     return r.clicked;
 }
 
-/* Adds a segment to the frame's list that cui_title_bar_hit_test reads; the first segment of a
- * frame starts the list. */
+/* Adds a segment to the frame's list that cui_title_bar_hit_test reads. The first segment of a
+ * frame starts the list and keeps the last frame's, which the hit test reads until this one is
+ * whole. */
 static void cui__title_bar_segment(cui_ctx *ui, cui_id id) {
-    if (ui->title_bar.frame != ui->frame) {
-        ui->title_bar.count = 0;
-        ui->title_bar.maximize = 0;
-        ui->title_bar.frame = ui->frame;
+    cui__title_bar_list *now = &ui->title_bar.now;
+    if (now->frame != ui->frame) {
+        ui->title_bar.before = *now;
+        memset(now, 0, sizeof *now);
+        now->frame = ui->frame;
     }
-    if (ui->title_bar.count < CUI__TITLE_BARS) ui->title_bar.bars[ui->title_bar.count++] = id;
+    if (now->count < CUI__TITLE_BARS) now->bars[now->count++] = id;
 }
 
 void cui_title_bar_begin(cui_ctx *ui, const char *id_str, const cui_title_bar_opts *o) {
@@ -1092,7 +1094,7 @@ void cui_title_bar_end(cui_ctx *ui) {
         if (b->frame.resizable) {
             cui_window_button kind = b->frame.maximized ? CUI_WINDOW_BUTTON_RESTORE : CUI_WINDOW_BUTTON_MAXIMIZE;
             if (cui__window_button(ui, "#maximize", kind, b->dim)) clicked = (int)kind;
-            ui->title_bar.maximize = ui->last_id;
+            ui->title_bar.now.maximize = ui->last_id;
         }
         if (cui__window_button(ui, "#close", CUI_WINDOW_BUTTON_CLOSE, b->dim)) clicked = CUI_WINDOW_BUTTON_CLOSE;
         if (clicked >= 0 && ui->platform.window_button) ui->platform.window_button(ui->platform.user, (cui_window_button)clicked);

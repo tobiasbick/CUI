@@ -414,6 +414,8 @@ cui_rect cui__prev_rect(cui_ctx *ui, cui_id id);
 bool cui__has_prev_rect(cui_ctx *ui, cui_id id);
 
 /* ---- interaction ---- */
+/* one frame's cui_title_bar segments and maximize button, for cui_title_bar_hit_test */
+typedef struct { cui_id bars[4]; int count; cui_id maximize; uint64_t frame; } cui__title_bar_list;
 typedef struct cui_hit {
     cui_id id;
     cui_rect rect;
@@ -694,8 +696,9 @@ struct cui_ctx {
         void *veil;                /* veils nest: each keeps the one around it */
         struct cui__skel_group *skeleton;   /* skeleton groups nest: each keeps the one around it */
     } building;
-    /* the latest frame's cui_title_bar segments and maximize button, for cui_title_bar_hit_test */
-    struct { cui_id bars[4]; int count; cui_id maximize; uint64_t frame; } title_bar;
+    /* cui_title_bar's segments of the frame being built or last built, and of the frame before:
+     * during a frame the hit test reads the one before, as it reads that frame's hit list */
+    struct { cui__title_bar_list now, before; } title_bar;
     cui__text_fx_fn text_fx;       /* set while a node with a text effect paints */
     void *text_fx_data;
     int text_fx_base;              /* byte offset of the line being drawn */

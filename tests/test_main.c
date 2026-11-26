@@ -4812,6 +4812,16 @@ static void test_title_bar(void) {
     CHECK(cui_title_bar_hit_test(ui, gap_x, bar.y + bar.h + 20) == CUI_TITLE_BAR_NONE);
     CHECK(cui_title_bar_hit_test(ui, 80, cy) == CUI_TITLE_BAR_CAPTION);   /* the sidebar's segment */
     CHECK(rect_of(ui, scoped_id(ui, "side", "#close")).w == 0);
+
+    /* while a frame is being built (a blocking file dialog keeps the window's messages coming),
+     * the hit test answers for the last whole frame, also when only the sidebar's segment of the
+     * new one is built yet */
+    cui_begin_frame(ui, 1.0f / 60.0f);
+    cui_title_bar(ui, "side", .no_window_buttons = true) {}
+    CHECK(cui_title_bar_hit_test(ui, gap_x, cy) == CUI_TITLE_BAR_CAPTION);
+    CHECK(cui_title_bar_hit_test(ui, center(mx).x, cy) == CUI_TITLE_BAR_MAXIMIZE);
+    cui_end_frame(ui);
+    run(ui, build_tbar, &t, 2);
     t.sidebar = false;
     run(ui, build_tbar, &t, 2);
     CHECK(cui_title_bar_hit_test(ui, 80, cy) == CUI_TITLE_BAR_NONE);
