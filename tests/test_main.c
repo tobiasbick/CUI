@@ -738,6 +738,50 @@ static void test_password_text_area(void) {
     if (strcmp(p.text, "abX\ncd") != 0) printf("  Text after Up: %s\n", p.text);
     CHECK(strcmp(p.text, "abX\ncd") == 0);
     cui_destroy(ui);
+
+    /* End stays on a line that breaks inside a word: Home then returns to the first line. */
+    ui = new_ctx();
+    cui_set_viewport(ui, 320, 100, 1);
+    memset(&p, 0, sizeof p);
+    p.password = true;
+    memset(p.text, 'a', 80);
+    run(ui, build_password_area, &p, 2);
+    r = rect_of(ui, p.id);
+    click_at(ui, build_password_area, &p, r.x + 14, r.y + 14);
+    key(ui, build_password_area, &p, CUI_KEY_END, 0);
+    key(ui, build_password_area, &p, CUI_KEY_HOME, 0);
+    type(ui, build_password_area, &p, "X");
+    if (p.text[0] != 'X') printf("  X after End and Home at index %d\n", (int)(strchr(p.text, 'X') - p.text));
+    CHECK(p.text[0] == 'X');
+    cui_destroy(ui);
+}
+
+typedef struct { char text[512]; cui_id id; } long_password_ctx;
+
+/** Draw a single-line password field for text longer than one measuring buffer. */
+static void build_long_password(cui_ctx *ui, void *user) {
+    long_password_ctx *p = user;
+    cui_input(ui, "Password", p->text, sizeof p->text, .password = true);
+    p->id = cui_last_id(ui);
+}
+
+/** Masked positions keep growing past 341 bullets, so a click at the end lands at the end. */
+static void test_long_password_positions(void) {
+    printf("password field: positions past 341 bullets\n");
+    cui_ctx *ui = new_ctx();
+    long_password_ctx p;
+    memset(&p, 0, sizeof p);
+    memset(p.text, 'a', 400);
+    run(ui, build_long_password, &p, 2);
+    cui_rect r = rect_of(ui, p.id);
+    click_at(ui, build_long_password, &p, r.x + 14, r.y + r.h / 2);
+    key(ui, build_long_password, &p, CUI_KEY_END, 0);
+    click_at(ui, build_long_password, &p, r.x + r.w - 50, r.y + r.h / 2);
+    type(ui, build_long_password, &p, "X");
+    int at = (int)(strchr(p.text, 'X') - p.text);
+    if (at <= 380) printf("  X inserted at index %d\n", at);
+    CHECK(at > 380);
+    cui_destroy(ui);
 }
 
 static void test_text_input(void) {
@@ -11037,6 +11081,7 @@ int main(void) {
     test_text_input();
     test_disabled_password_reveal();
     test_password_text_area();
+    test_long_password_positions();
     test_empty_field_caret();
     test_textarea_and_clear();
     test_textarea_ime_caret();

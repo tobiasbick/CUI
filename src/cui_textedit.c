@@ -37,12 +37,15 @@ static int cui__cp_count(const char *s, int len) {
 }
 
 
+/** Width of the first off bytes of a line, measured as bullets when the text is masked. */
 static float cui__x_at(cui_ctx *ui, const cui__edit_paint *p, const char *line, int line_len, int off) {
     if (p->password) {
+        /* every painted bullet counts: longer masks than the stack buffer go to frame memory */
         char tmp[1024];
-        int cps = cui__cp_count(line, off);
-        int n = cui__edit_mask(tmp, sizeof tmp, cps);
-        return cui__text_width(ui, p->font, p->size, tmp, n, false);
+        int cps = cui__cp_count(line, off), cap = cps * 3 + 4;
+        char *mask = cap <= (int)sizeof tmp ? tmp : cui__frame_alloc(ui, (size_t)cap);
+        int n = cui__edit_mask(mask, cap, cps);
+        return cui__text_width(ui, p->font, p->size, mask, n, false);
     }
     (void)line_len;
     return cui__text_width(ui, p->font, p->size, line, off, false);
@@ -451,7 +454,10 @@ static void cui__edit_move_keys(cui__edit_frame *c) {
             cui_text_layout_line *lines = c->lines;
             int ln = cui__line_of(lines, c->nlines, e->cursor);
             int end = lines[ln].end;
-            if (ln < c->nlines - 1 && end == lines[ln + 1].start && end > lines[ln].start && buf[end - 1] == ' ') end--;
+            /* A soft break the next line starts at belongs to that line: stop before it, after a
+             * space where words wrap, or before the last character where masked text breaks. */
+            if (ln < c->nlines - 1 && end == lines[ln + 1].start && end > lines[ln].start && (c->password || buf[end - 1] == ' '))
+                end = cui__utf8_prev(buf, end);
             cui__edit_move(c, end);
         } else cui__edit_move(c, len);
     }
