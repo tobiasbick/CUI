@@ -695,11 +695,17 @@ static bool cui__segments(cui_ctx *ui, const char *id_str, const char *const *it
     return *index != old;
 }
 
-/* the baseline under a tab row, painted before the tabs so the active
- * indicator sits on top of it rather than above it */
-static void cui__paint_tab_baseline(cui_ctx *ui, cui_node *n, void *data) {
-    cui_color *c = data;
-    cui_draw_rect(ui, (cui_rect){ n->rect.x, n->rect.y + n->rect.h - 1, n->rect.w, 1 }, CUI_CORNERS(0), *c);
+/* What a tab strip paints: the underline variant's baseline, painted before the
+ * tabs so the active indicator sits on top of it rather than above it, and
+ * whether the selection still waits for a laid out strip to scroll into. */
+typedef struct { cui_color border; bool baseline, reveal; } cui__tab_strip_paint;
+
+/** Paint the strip's baseline. A selection still waiting to be revealed asks for the
+ * next frame once layout gives the strip a width, which only layout knows. */
+static void cui__paint_tab_strip(cui_ctx *ui, cui_node *n, void *data) {
+    cui__tab_strip_paint *p = data;
+    if (p->baseline) cui_draw_rect(ui, (cui_rect){ n->rect.x, n->rect.y + n->rect.h - 1, n->rect.w, 1 }, CUI_CORNERS(0), p->border);
+    if (p->reveal && n->rect.w > 0) cui_request_redraw(ui);
 }
 
 void cui__paint_focus_ring_node(cui_ctx *ui, cui_node *n, void *data) {
@@ -714,10 +720,6 @@ bool cui_segmented_ex(cui_ctx *ui, const char *id, const char *const *items, int
     return cui__segments(ui, id, items, o->icons, count, index, 0, o->size, o->full_width);
 }
 
-/* The tab last brought into view (index + 1, so 0 means none yet), and whether a
- * frame was already requested to lay out a selection that has no place yet. */
-typedef struct { int index; bool waited; } cui__tabs_reveal;
-
 /** Scroll a newly selected tab into view once the strip and the tab have been laid out. */
 bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int count, int *index, const cui_tabs_opts *o) {
     cui_tabs_opts d;
@@ -730,8 +732,9 @@ bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int coun
      * selected tab into view. */
     cui_id sid = cui_make_id(ui, id) ^ 0x7AB5u;
     cui_scroll_state *ss = cui_state(ui, sid, sizeof *ss);
-    cui__tabs_reveal *rv = cui_state(ui, sid ^ 0x1u, sizeof *rv);
-    if (*index >= 0 && *index < count && rv->index != *index + 1) {
+    int *shown = cui_state(ui, sid ^ 0x1u, sizeof *shown);   /* the tab last brought into view, plus one */
+    bool reveal = *index >= 0 && *index < count && *shown != *index + 1;
+    if (reveal) {
         cui_rect vr = cui__prev_rect(ui, sid), tr = cui__prev_rect(ui, cui__hash(index, sizeof *index, cui_make_id(ui, id)));
         if (vr.w > 0 && tr.w > 0) {
             if (ss->content_w > ss->view_w + 0.5f) {
@@ -739,14 +742,8 @@ bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int coun
                 if (tr.x < vr.x) ss->tx -= vr.x - tr.x + margin;
                 else if (tr.x + tr.w > vr.x + vr.w) ss->tx += tr.x + tr.w - (vr.x + vr.w) + margin;
             }
-            rv->index = *index + 1;
-            rv->waited = false;
-        } else if (!rv->waited) {
-            /* Before its first layout neither has a place. Ask once for the frame that has
-             * them, so a strip appearing in an idle window still reveals its tab; a strip
-             * that still has no width then waits for the next frame of its own. */
-            rv->waited = true;
-            cui_request_redraw(ui);
+            *shown = *index + 1;
+            reveal = false;
         }
     }
     cui_box sb;
@@ -757,11 +754,13 @@ bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int coun
     ui->nodes[col].self_align = pill ? CUI__ALIGN_NOSTRETCH : CUI_ALIGN_STRETCH;
     if (pill) ui->nodes[col].w = CUI_FIT;
     ss->fade = cui__backdrop(ui);
-    if (!pill) {
-        cui_color *bc = cui__frame_alloc(ui, sizeof *bc);
-        *bc = CUI_C(ui, BORDER);
-        ui->nodes[col].paint = cui__paint_tab_baseline;
-        ui->nodes[col].paint_data = bc;
+    if (!pill || reveal) {
+        cui__tab_strip_paint *sp = cui__frame_alloc(ui, sizeof *sp);
+        sp->border = CUI_C(ui, BORDER);
+        sp->baseline = !pill;
+        sp->reveal = reveal;
+        ui->nodes[col].paint = cui__paint_tab_strip;
+        ui->nodes[col].paint_data = sp;
     }
     bool r = cui__segments(ui, id, items, o->icons, count, index, pill ? 2 : 1, CUI_SIZE_MD, o->full_width);
     cui__scroll_end_ex(ui);

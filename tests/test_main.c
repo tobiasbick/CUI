@@ -7396,7 +7396,7 @@ static uint32_t settled_tabs_hash(cui_ctx *ui, tabs_reveal_ctx *t) {
 }
 
 /** A tab selected before the strip's first layout scrolls into view like one selected later,
- * also when the strip first appears in a window that has already settled. */
+ * also when the strip first appears or gets its width in a window that has already settled. */
 static void test_tabs_initial_reveal(void) {
     printf("tabs: the initial selection scrolls into view without input\n");
     cui_ctx *ui = new_ctx();
@@ -7425,13 +7425,16 @@ static void test_tabs_initial_reveal(void) {
     cui_destroy(ui);
     CHECK(appeared == later);
 
-    /* A strip with no width asks for one frame, not for a frame every frame. */
+    /* A strip with no width does not ask for frames, and reveals its tab once it gets a width. */
     ui = new_ctx();
     cui_set_viewport(ui, 320, 80, 1);
     t = (tabs_reveal_ctx){ 3, false, true };
     settled_tabs_hash(ui, &t);
     CHECK(!cui_needs_redraw(ui));
+    t.collapsed = false;
+    uint32_t widened = settled_tabs_hash(ui, &t);
     cui_destroy(ui);
+    CHECK(widened == later);
 }
 
 /** Four tabs make it possible to distinguish a single step from a cascade. */
