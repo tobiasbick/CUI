@@ -7377,6 +7377,40 @@ static void build_motion(cui_ctx *ui, void *u) {
 }
 
 /** Four tabs make it possible to distinguish a single step from a cascade. */
+/** A narrow underline strip whose four captions are wider than the strip. */
+static void build_tabs_reveal(cui_ctx *ui, void *user) {
+    static const char *const items[] = { "Account settings", "Notification preferences", "Billing and invoices",
+                                         "Connected applications" };
+    cui_column(ui, .pad = 10, .width = CUI_PX(220)) cui_tabs(ui, "tabs", items, 4, user);
+}
+
+/** Draw only while CUI asks for frames, as an event driven app does, and hash the result. */
+static uint32_t settled_tabs_hash(cui_ctx *ui, int *index) {
+    run(ui, build_tabs_reveal, index, 1);
+    for (int i = 0; i < 60 && cui_needs_redraw(ui); i++) run(ui, build_tabs_reveal, index, 1);
+    return frame_hash(ui);
+}
+
+/** A tab selected before the first layout scrolls into view like one selected later. */
+static void test_tabs_initial_reveal(void) {
+    printf("tabs: the initial selection scrolls into view without input\n");
+    cui_ctx *ui = new_ctx();
+    cui_set_viewport(ui, 320, 80, 1);
+    int index = 3;
+    uint32_t initial = settled_tabs_hash(ui, &index);
+    cui_destroy(ui);
+
+    ui = new_ctx();
+    cui_set_viewport(ui, 320, 80, 1);
+    index = 0;
+    uint32_t first = settled_tabs_hash(ui, &index);
+    index = 3;
+    uint32_t later = settled_tabs_hash(ui, &index);
+    cui_destroy(ui);
+    CHECK(first != later);
+    CHECK(initial == later);
+}
+
 static void build_tab_step(cui_ctx *ui, void *user) {
     static const cui_tab_bar_item tabs[] = { { NULL, "Home", 0 }, { NULL, "Search", 0 },
                                              { NULL, "Inbox", 0 }, { NULL, "Profile", 0 } };
@@ -11082,6 +11116,7 @@ int main(void) {
     test_typing_indicator_motion();
     test_running_task_motion();
     test_running_job_motion();
+    test_tabs_initial_reveal();
     test_tab_step();
     test_ai();
     test_text_capacity();

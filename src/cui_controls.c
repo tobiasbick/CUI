@@ -714,6 +714,7 @@ bool cui_segmented_ex(cui_ctx *ui, const char *id, const char *const *items, int
     return cui__segments(ui, id, items, o->icons, count, index, 0, o->size, o->full_width);
 }
 
+/** Scroll a newly selected tab into view once the strip and the tab have been laid out. */
 bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int count, int *index, const cui_tabs_opts *o) {
     cui_tabs_opts d;
     memset(&d, 0, sizeof d);
@@ -726,15 +727,18 @@ bool cui_tabs_ex(cui_ctx *ui, const char *id, const char *const *items, int coun
     cui_id sid = cui_make_id(ui, id) ^ 0x7AB5u;
     cui_scroll_state *ss = cui_state(ui, sid, sizeof *ss);
     int *last = cui_state(ui, sid ^ 0x1u, sizeof(int));   /* last index + 1, so 0 means unset */
-    if (*index >= 0 && *index < count && last[0] != *index + 1 && ss->content_w > ss->view_w + 0.5f) {
+    if (*index >= 0 && *index < count && last[0] != *index + 1) {
         cui_rect vr = cui__prev_rect(ui, sid), tr = cui__prev_rect(ui, cui__hash(index, sizeof *index, cui_make_id(ui, id)));
+        /* Before the first layout neither has a place: try again on the next frame. */
         if (vr.w > 0 && tr.w > 0) {
-            float margin = 24;
-            if (tr.x < vr.x) ss->tx -= vr.x - tr.x + margin;
-            else if (tr.x + tr.w > vr.x + vr.w) ss->tx += tr.x + tr.w - (vr.x + vr.w) + margin;
+            if (ss->content_w > ss->view_w + 0.5f) {
+                float margin = 24;
+                if (tr.x < vr.x) ss->tx -= vr.x - tr.x + margin;
+                else if (tr.x + tr.w > vr.x + vr.w) ss->tx += tr.x + tr.w - (vr.x + vr.w) + margin;
+            }
+            last[0] = *index + 1;
         }
     }
-    if (*index >= 0) last[0] = *index + 1;
     cui_box sb;
     memset(&sb, 0, sizeof sb);
     sb.width = CUI_FILL;
