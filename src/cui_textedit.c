@@ -51,18 +51,27 @@ static float cui__x_at(cui_ctx *ui, const cui__edit_paint *p, const char *line, 
     return cui__text_width(ui, p->font, p->size, line, off, false);
 }
 
-/** Text offset nearest to x in one line, walking code points when the text is masked. */
+/** Text offset nearest to x in one line. A masked line is masked once and searched by
+ * bullet count, since its width grows with every bullet. */
 static int cui__edit_hit(cui_ctx *ui, const cui__edit_paint *p, const char *line, int line_len, float x) {
     if (!p->password) return cui__text_hit(ui, p->font, p->size, line, line_len, x);
-    int pos = 0, best = 0;
-    float bestd = 1e9f;
-    for (;;) {
-        float d = fabsf(cui__x_at(ui, p, line, line_len, pos) - x);
-        if (d < bestd) { bestd = d; best = pos; }
-        if (pos >= line_len) break;
-        pos = cui__utf8_next(line, line_len, pos);
+    int cps = cui__cp_count(line, line_len), cap = cps * 3 + 4;
+    char *mask = cui__frame_alloc(ui, (size_t)cap);
+    cui__edit_mask(mask, cap, cps);
+    int lo = 0, hi = cps;   /* the fewest bullets that reach x */
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (cui__text_width(ui, p->font, p->size, mask, mid * 3, false) < x) lo = mid + 1;
+        else hi = mid;
     }
-    return best;
+    if (lo > 0) {   /* the bullet boundary before it may be nearer */
+        float before = cui__text_width(ui, p->font, p->size, mask, (lo - 1) * 3, false);
+        float at = cui__text_width(ui, p->font, p->size, mask, lo * 3, false);
+        if (x - before <= at - x) lo--;
+    }
+    int pos = 0;
+    for (int k = 0; k < lo; k++) pos = cui__utf8_next(line, line_len, pos);
+    return pos;
 }
 
 /** What a line paints: the text itself, or one bullet per code point in frame memory. */

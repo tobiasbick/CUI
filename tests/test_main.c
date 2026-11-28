@@ -751,8 +751,9 @@ static void test_password_text_area(void) {
     key(ui, build_password_area, &p, CUI_KEY_END, 0);
     key(ui, build_password_area, &p, CUI_KEY_HOME, 0);
     type(ui, build_password_area, &p, "X");
-    if (p.text[0] != 'X') printf("  X after End and Home at index %d\n", (int)(strchr(p.text, 'X') - p.text));
-    CHECK(p.text[0] == 'X');
+    const char *x = strchr(p.text, 'X');
+    if (x != p.text) printf("  X after End and Home at index %d\n", x ? (int)(x - p.text) : -1);
+    CHECK(x == p.text);
     cui_destroy(ui);
 }
 
@@ -778,7 +779,8 @@ static void test_long_password_positions(void) {
     key(ui, build_long_password, &p, CUI_KEY_END, 0);
     click_at(ui, build_long_password, &p, r.x + r.w - 50, r.y + r.h / 2);
     type(ui, build_long_password, &p, "X");
-    int at = (int)(strchr(p.text, 'X') - p.text);
+    const char *x = strchr(p.text, 'X');
+    int at = x ? (int)(x - p.text) : -1;
     if (at <= 380) printf("  X inserted at index %d\n", at);
     CHECK(at > 380);
     cui_destroy(ui);
